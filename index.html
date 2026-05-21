@@ -1,0 +1,2461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0d0d0d" />
+  <meta name="description" content="MailCal — Email & Calendar Manager" />
+  <link rel="manifest" href="manifest.json" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <title>MailCal</title>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg:         #0d0d0d;
+      --panel:      #111111;
+      --card:       #161616;
+      --card-h:     #1c1c1c;
+      --border:     #222222;
+      --border-s:   #191919;
+      --accent:     #6366f1;
+      --accent-d:   rgba(99,102,241,.12);
+      --accent-b:   rgba(99,102,241,.25);
+      --text:       #e4e4e7;
+      --muted:      #71717a;
+      --dim:        #3f3f46;
+      --green:      #22c55e;
+      --orange:     #f97316;
+      --red:        #ef4444;
+      --gmail:      #ea4335;
+      --outlook:    #0078d4;
+      --gemini:     #4285f4;
+      --claude:     #d97706;
+      --openai:     #10a37f;
+      --ollama:     #7c3aed;
+      /* per-section colors — overridden in multicolor mode */
+      --email-color: #6366f1;
+      --cal-color:   #6366f1;
+      --ai-color:    #6366f1;
+      --events-color:#6366f1;
+    }
+
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      height: 100vh; overflow: hidden; font-size: 14px; line-height: 1.4;
+    }
+
+    /* ── Shell ───────────────────────────────────────────── */
+    .app { display: grid; grid-template-rows: 52px 1fr; height: 100vh; }
+    .body-wrap { display: grid; grid-template-columns: 220px 1fr; overflow: hidden; }
+
+    /* ── Topbar ──────────────────────────────────────────── */
+    .topbar {
+      display: flex; align-items: center; padding: 0 20px; gap: 16px;
+      background: var(--panel); border-bottom: 1px solid var(--border); z-index: 10;
+    }
+    .logo {
+      display: flex; align-items: center; gap: 9px;
+      font-weight: 700; font-size: 15px; letter-spacing: -.4px; min-width: 180px;
+    }
+    .logo-icon {
+      width: 30px; height: 30px; background: var(--accent); border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 800; color: #fff; flex-shrink: 0;
+    }
+    .search-wrap { flex: 1; max-width: 480px; position: relative; }
+    .search-wrap input {
+      width: 100%; background: var(--card); border: 1px solid var(--border);
+      border-radius: 8px; padding: 7px 12px 7px 34px; color: var(--text);
+      font-size: 13px; outline: none; transition: border-color .2s;
+    }
+    .search-wrap input:focus { border-color: var(--accent); }
+    .search-wrap input::placeholder { color: var(--muted); }
+    .search-icon {
+      position: absolute; left: 11px; top: 50%; transform: translateY(-50%);
+      color: var(--muted); font-size: 15px; pointer-events: none;
+    }
+    .topbar-r { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+    .icon-btn {
+      width: 32px; height: 32px; background: var(--card); border: 1px solid var(--border);
+      border-radius: 7px; display: flex; align-items: center; justify-content: center;
+      cursor: pointer; color: var(--muted); font-size: 15px; transition: all .15s;
+      position: relative;
+    }
+    .icon-btn:hover { background: var(--card-h); color: var(--text); }
+    .notif::after {
+      content: ''; position: absolute; top: 5px; right: 5px;
+      width: 6px; height: 6px; border-radius: 50%; background: var(--red);
+      border: 2px solid var(--panel);
+    }
+    .avatar {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 12px; cursor: pointer;
+    }
+
+    /* ── Sidebar ─────────────────────────────────────────── */
+    .sidebar {
+      background: var(--panel); border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; padding: 14px 10px;
+      overflow-y: auto; gap: 2px;
+    }
+    .sidebar::-webkit-scrollbar { width: 3px; }
+    .sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .compose-btn {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      background: var(--accent); color: #fff; border: none; border-radius: 8px;
+      padding: 10px; font-size: 13px; font-weight: 600; cursor: pointer;
+      margin-bottom: 14px; transition: opacity .2s; width: 100%; font-family: inherit;
+    }
+    .compose-btn:hover { opacity: .85; }
+
+    .nav-lbl {
+      font-size: 10px; font-weight: 600; letter-spacing: .12em;
+      text-transform: uppercase; color: var(--dim); padding: 6px 10px 4px;
+    }
+    .nav-item {
+      display: flex; align-items: center; gap: 10px; padding: 8px 10px;
+      border-radius: 7px; cursor: pointer; color: var(--muted); font-size: 13px;
+      transition: background .15s, color .15s;
+    }
+    .nav-item:hover { background: var(--card); color: var(--text); }
+    .nav-item.active { background: var(--accent-d); color: var(--accent); font-weight: 500; }
+    .nav-item .ni { font-size: 14px; width: 18px; text-align: center; flex-shrink: 0; }
+    .badge {
+      margin-left: auto; background: var(--accent); color: #fff; font-size: 10px;
+      font-weight: 700; padding: 1px 6px; border-radius: 10px; min-width: 18px; text-align: center;
+    }
+    .badge.r { background: var(--red); }
+    .sidebar-sep { height: 1px; background: var(--border-s); margin: 8px 0; }
+
+    /* ── Home / Overview ─────────────────────────────────── */
+    .home-view {
+      display: flex; flex-direction: column; width: 100%;
+      overflow-y: auto; padding: 28px 32px; gap: 22px;
+    }
+    .home-view::-webkit-scrollbar { width: 4px; }
+    .home-view::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    .home-greeting { display: flex; align-items: baseline; gap: 12px; }
+    .home-greeting-name { font-size: 24px; font-weight: 800; letter-spacing: -.5px; }
+    .home-greeting-date { font-size: 13px; color: var(--muted); }
+
+    .widget-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+      align-items: start;
+    }
+    .widget {
+      background: var(--card); border: 2px solid var(--border);
+      border-radius: 14px; overflow: hidden;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .widget.drag-over {
+      border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-b);
+    }
+    .widget.dragging { opacity: .35; }
+    .widget.expanded { grid-column: 1 / -1; }
+    .widget-header {
+      display: flex; align-items: center; gap: 8px;
+      padding: 13px 14px 11px; border-bottom: 1px solid var(--border-s);
+    }
+    .widget-drag {
+      color: var(--dim); font-size: 14px; cursor: grab;
+      user-select: none; line-height: 1; padding: 1px 3px;
+      border-radius: 4px; transition: color .15s;
+    }
+    .widget-drag:hover { color: var(--muted); }
+    .widget-drag:active { cursor: grabbing; }
+    .widget-icon { font-size: 16px; flex-shrink: 0; }
+    .widget-title { font-size: 13px; font-weight: 600; flex: 1; }
+    .widget-action-btn {
+      width: 24px; height: 24px; border: none; background: transparent;
+      color: var(--dim); font-size: 14px; cursor: pointer;
+      border-radius: 5px; display: flex; align-items: center; justify-content: center;
+      transition: all .15s; font-family: inherit;
+    }
+    .widget-action-btn:hover { background: var(--card-h); color: var(--muted); }
+    .widget-body { padding: 16px; }
+    .widget-stat-big {
+      font-size: 52px; font-weight: 900; line-height: 1; letter-spacing: -3px;
+    }
+    .widget-stat-label { font-size: 12px; color: var(--muted); margin-top: 6px; }
+    .widget-footer {
+      padding: 8px 14px; border-top: 1px solid var(--border-s);
+      display: flex; align-items: center; gap: 6px; background: rgba(0,0,0,.15);
+    }
+    .widget-footer-label { font-size: 11px; color: var(--dim); }
+    .widget-footer select {
+      background: transparent; border: none; color: var(--muted);
+      font-size: 11px; outline: none; cursor: pointer; font-family: inherit;
+    }
+    .widget-footer select option { background: var(--card); }
+
+    .event-item {
+      display: flex; gap: 10px; padding: 9px 0;
+      border-bottom: 1px solid var(--border-s);
+    }
+    .event-item:last-child { border-bottom: none; padding-bottom: 0; }
+    .event-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--cal-color); margin-top: 5px; flex-shrink: 0;
+    }
+    .event-time { font-size: 11px; color: var(--muted); min-width: 52px; flex-shrink: 0; padding-top: 1px; }
+    .event-name { font-size: 12px; font-weight: 500; }
+    .event-sub { font-size: 11px; color: var(--dim); margin-top: 1px; }
+
+    /* ── Theme / Color picker (in settings) ──────────────── */
+    .accent-grid { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 10px; }
+    .accent-swatch {
+      width: 30px; height: 30px; border-radius: 50%;
+      cursor: pointer; position: relative; flex-shrink: 0;
+      transition: transform .15s, box-shadow .15s;
+    }
+    .accent-swatch:hover { transform: scale(1.18); }
+    .accent-swatch.selected { box-shadow: 0 0 0 3px var(--bg), 0 0 0 5px currentColor; }
+    .accent-swatch.selected::after {
+      content: '✓'; position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 800; color: #fff;
+    }
+    .scheme-grid { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+    .scheme-card {
+      border: 2px solid var(--border); border-radius: 10px;
+      padding: 10px 12px; cursor: pointer; transition: all .15s;
+      display: flex; flex-direction: column; align-items: center; gap: 7px;
+      min-width: 110px;
+    }
+    .scheme-card:hover { border-color: #333; }
+    .scheme-card.selected { border-color: var(--accent); background: var(--accent-d); }
+    .scheme-preview {
+      width: 48px; height: 20px; border-radius: 5px;
+      display: flex; overflow: hidden; gap: 1px;
+    }
+    .scheme-stripe { flex: 1; }
+    .scheme-label { font-size: 11px; font-weight: 600; text-align: center; color: var(--muted); }
+    .scheme-card.selected .scheme-label { color: var(--accent); }
+
+    /* ── Content area (swapped by views) ────────────────── */
+    #content { overflow: hidden; display: flex; }
+
+    /* ── Dashboard ───────────────────────────────────────── */
+    .dash-grid {
+      display: grid; grid-template-columns: 320px 1fr 280px;
+      width: 100%; overflow: hidden;
+    }
+
+    /* Email List Panel */
+    .list-panel {
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+    .list-head { padding: 14px 14px 10px; border-bottom: 1px solid var(--border-s); }
+    .list-title { font-size: 16px; font-weight: 700; margin-bottom: 10px; }
+    .tabs { display: flex; gap: 2px; background: var(--card); padding: 3px; border-radius: 8px; }
+    .tab {
+      flex: 1; text-align: center; padding: 5px 4px; border-radius: 6px;
+      font-size: 12px; color: var(--muted); cursor: pointer; transition: all .15s;
+    }
+    .tab.active { background: var(--panel); color: var(--text); font-weight: 500; }
+    .email-list { flex: 1; overflow-y: auto; padding: 8px; }
+
+    /* Empty States */
+    .empty-state {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 12px; height: 100%; color: var(--dim); text-align: center; padding: 24px;
+    }
+    .empty-icon { font-size: 40px; opacity: .4; }
+    .empty-title { font-size: 14px; font-weight: 600; color: var(--muted); }
+    .empty-desc { font-size: 12px; color: var(--dim); line-height: 1.6; max-width: 200px; }
+    .empty-btn {
+      margin-top: 4px; padding: 8px 16px; background: var(--accent-d);
+      border: 1px solid var(--accent-b); border-radius: 7px; color: var(--accent);
+      font-size: 12px; cursor: pointer; transition: background .2s; font-family: inherit;
+    }
+    .empty-btn:hover { background: rgba(99,102,241,.2); }
+
+    /* Email Reader */
+    .reader { display: flex; flex-direction: column; overflow: hidden; background: var(--bg); }
+
+    /* Right Panel */
+    .right-panel {
+      border-left: 1px solid var(--border); display: flex; flex-direction: column;
+      overflow: hidden; background: var(--panel);
+    }
+
+    /* Mini Calendar */
+    .mini-cal { padding: 16px; border-bottom: 1px solid var(--border); }
+    .cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .cal-month { font-size: 13px; font-weight: 700; }
+    .cal-navs { display: flex; gap: 4px; }
+    .cal-nb {
+      width: 24px; height: 24px; background: var(--card); border: 1px solid var(--border);
+      border-radius: 5px; color: var(--muted); font-size: 12px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; transition: all .15s;
+    }
+    .cal-nb:hover { background: var(--card-h); color: var(--text); }
+    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; }
+    .cdlbl { text-align: center; font-size: 10px; color: var(--dim); font-weight: 600; padding: 3px 0; }
+    .cd {
+      text-align: center; padding: 5px 2px; border-radius: 5px; font-size: 12px;
+      color: var(--muted); cursor: pointer; transition: background .15s; position: relative;
+    }
+    .cd:hover { background: var(--card); color: var(--text); }
+    .cd.other { color: var(--dim); }
+    .cd.today { background: var(--accent); color: #fff; font-weight: 700; }
+
+    /* Upcoming */
+    .upcoming { padding: 12px 16px; border-bottom: 1px solid var(--border); }
+    .sec-lbl {
+      font-size: 10px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: .1em; color: var(--dim); margin-bottom: 8px;
+    }
+
+    /* AI Chat */
+    .ai-chat { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .chat-head {
+      padding: 11px 14px; display: flex; align-items: center; gap: 8px;
+      border-bottom: 1px solid var(--border-s);
+    }
+    .ai-icon {
+      width: 26px; height: 26px; border-radius: 7px;
+      background: linear-gradient(135deg,#6366f1,#8b5cf6);
+      display: flex; align-items: center; justify-content: center; font-size: 12px;
+    }
+    .chat-ttl { font-size: 13px; font-weight: 600; }
+    .chat-sub { font-size: 11px; color: var(--muted); margin-left: auto; }
+    .chat-msgs {
+      flex: 1; overflow-y: auto; padding: 12px;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .chat-msgs::-webkit-scrollbar { width: 3px; }
+    .chat-msgs::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    .bubble {
+      padding: 9px 12px; border-radius: 10px; font-size: 12px;
+      line-height: 1.55; max-width: 92%;
+    }
+    .bubble.ai {
+      background: var(--card); border: 1px solid var(--border);
+      color: var(--text); align-self: flex-start; border-bottom-left-radius: 3px;
+    }
+    .bubble.user {
+      background: var(--accent); color: #fff;
+      align-self: flex-end; border-bottom-right-radius: 3px;
+    }
+    .chat-input-row {
+      padding: 10px 12px; display: flex; gap: 6px;
+      border-top: 1px solid var(--border-s);
+    }
+    .chat-inp {
+      flex: 1; background: var(--card); border: 1px solid var(--border);
+      border-radius: 7px; padding: 7px 10px; color: var(--text); font-size: 12px;
+      outline: none; resize: none; transition: border-color .2s; font-family: inherit;
+    }
+    .chat-inp:focus { border-color: var(--accent); }
+    .chat-inp::placeholder { color: var(--dim); }
+    .send-btn {
+      width: 32px; height: 32px; background: var(--accent); border: none;
+      border-radius: 7px; color: #fff; font-size: 15px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      align-self: flex-end; transition: opacity .2s; flex-shrink: 0;
+    }
+    .send-btn:hover { opacity: .85; }
+    .ai-disabled {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 10px; padding: 20px; text-align: center;
+    }
+    .ai-disabled-icon { font-size: 28px; opacity: .3; }
+    .ai-disabled-txt { font-size: 12px; color: var(--dim); line-height: 1.6; }
+    .ai-disabled-btn {
+      padding: 7px 14px; background: var(--accent-d); border: 1px solid var(--accent-b);
+      border-radius: 7px; color: var(--accent); font-size: 11px; cursor: pointer;
+      transition: background .2s; font-family: inherit;
+    }
+    .ai-disabled-btn:hover { background: rgba(99,102,241,.2); }
+
+    /* ── Settings View ───────────────────────────────────── */
+    .settings-view {
+      display: grid; grid-template-columns: 200px 1fr;
+      width: 100%; overflow: hidden;
+    }
+    .settings-nav {
+      background: var(--panel); border-right: 1px solid var(--border);
+      padding: 20px 10px; display: flex; flex-direction: column; gap: 2px;
+    }
+    .settings-nav-title {
+      font-size: 11px; font-weight: 700; letter-spacing: .1em;
+      text-transform: uppercase; color: var(--dim); padding: 0 10px 10px;
+    }
+    .snav-item {
+      display: flex; align-items: center; gap: 10px; padding: 9px 10px;
+      border-radius: 7px; cursor: pointer; color: var(--muted); font-size: 13px;
+      transition: all .15s;
+    }
+    .snav-item:hover { background: var(--card); color: var(--text); }
+    .snav-item.active { background: var(--accent-d); color: var(--accent); font-weight: 500; }
+    .snav-item .sni { font-size: 15px; width: 20px; text-align: center; flex-shrink: 0; }
+
+    .settings-content {
+      overflow-y: auto; padding: 28px 32px; display: flex; flex-direction: column; gap: 28px;
+    }
+    .settings-content::-webkit-scrollbar { width: 4px; }
+    .settings-content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .settings-section-title {
+      font-size: 18px; font-weight: 700; letter-spacing: -.3px; margin-bottom: 4px;
+    }
+    .settings-section-desc { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
+
+    /* Provider Cards */
+    .provider-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px;
+    }
+    .provider-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 16px; transition: border-color .2s;
+    }
+    .provider-card:hover { border-color: #333; }
+    .provider-card.connected { border-color: rgba(34,197,94,.25); }
+
+    .pcard-head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+    .pcard-logo {
+      width: 36px; height: 36px; border-radius: 9px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; font-weight: 800; color: #fff; flex-shrink: 0;
+    }
+    .pcard-name { font-size: 14px; font-weight: 600; }
+    .pcard-status { font-size: 12px; margin-top: 2px; }
+    .pcard-status.on { color: var(--green); }
+    .pcard-status.off { color: var(--muted); }
+    .pcard-badge {
+      margin-left: auto; font-size: 10px; font-weight: 600; padding: 3px 8px;
+      border-radius: 10px; flex-shrink: 0;
+    }
+    .badge-free { background: rgba(34,197,94,.12); color: var(--green); border: 1px solid rgba(34,197,94,.2); }
+    .badge-paid { background: rgba(249,115,22,.12); color: var(--orange); border: 1px solid rgba(249,115,22,.2); }
+    .badge-local { background: rgba(124,58,237,.12); color: #a78bfa; border: 1px solid rgba(124,58,237,.2); }
+
+    .field-group { margin-bottom: 10px; }
+    .field-group label {
+      display: block; font-size: 11px; font-weight: 600; color: var(--muted);
+      text-transform: uppercase; letter-spacing: .06em; margin-bottom: 5px;
+    }
+    .field-group input, .field-group select {
+      width: 100%; background: var(--panel); border: 1px solid var(--border);
+      border-radius: 7px; padding: 8px 10px; color: var(--text); font-size: 13px;
+      outline: none; transition: border-color .2s; font-family: inherit;
+    }
+    .field-group input:focus, .field-group select:focus { border-color: var(--accent); }
+    .field-group input::placeholder { color: var(--dim); }
+    .field-group input[type="password"] { letter-spacing: .1em; }
+    .field-group input[type="password"]::placeholder { letter-spacing: 0; }
+    .field-group select { cursor: pointer; }
+    .field-group select option { background: var(--card); }
+
+    .field-help { font-size: 11px; color: var(--dim); margin-top: 4px; }
+    .field-help a { color: var(--accent); text-decoration: none; cursor: pointer; }
+    .field-help a:hover { text-decoration: underline; }
+
+    .pcard-btn {
+      width: 100%; padding: 9px; border-radius: 7px; font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: all .2s; font-family: inherit; margin-top: 4px;
+    }
+    .pcard-btn.connect { background: var(--accent); border: none; color: #fff; }
+    .pcard-btn.connect:hover { opacity: .85; }
+    .pcard-btn.disconnect {
+      background: transparent; border: 1px solid var(--border); color: var(--muted);
+    }
+    .pcard-btn.disconnect:hover { border-color: var(--red); color: var(--red); background: rgba(239,68,68,.05); }
+    .pcard-btn.test {
+      background: transparent; border: 1px solid var(--border); color: var(--muted);
+    }
+    .pcard-btn.test:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-d); }
+
+    .connected-info {
+      display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+      background: rgba(34,197,94,.06); border: 1px solid rgba(34,197,94,.15);
+      border-radius: 7px; margin-bottom: 10px;
+    }
+    .connected-info .ci-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
+    .connected-info .ci-email { font-size: 12px; color: var(--text); }
+
+    /* AI provider active selector */
+    .ai-active-bar {
+      background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+      padding: 14px 16px; display: flex; align-items: center; gap: 12px;
+    }
+    .ai-active-label { font-size: 13px; font-weight: 600; flex-shrink: 0; }
+    .ai-active-bar select {
+      flex: 1; background: var(--panel); border: 1px solid var(--border);
+      border-radius: 7px; padding: 7px 10px; color: var(--text); font-size: 13px;
+      outline: none; font-family: inherit; cursor: pointer;
+    }
+    .ai-active-bar select:focus { border-color: var(--accent); }
+    .ai-active-bar select option { background: var(--card); }
+
+    /* Toggle */
+    .toggle-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 0; border-bottom: 1px solid var(--border-s);
+    }
+    .toggle-row:last-child { border-bottom: none; }
+    .toggle-info .t-name { font-size: 13px; font-weight: 500; }
+    .toggle-info .t-desc { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .toggle {
+      width: 38px; height: 22px; background: var(--border); border-radius: 11px;
+      cursor: pointer; position: relative; transition: background .2s; flex-shrink: 0;
+    }
+    .toggle.on { background: var(--accent); }
+    .toggle::after {
+      content: ''; position: absolute; top: 3px; left: 3px;
+      width: 16px; height: 16px; border-radius: 50%; background: #fff;
+      transition: left .2s; box-shadow: 0 1px 3px rgba(0,0,0,.3);
+    }
+    .toggle.on::after { left: 19px; }
+
+    /* Save button */
+    .save-bar {
+      display: flex; align-items: center; gap: 12px;
+      padding: 16px 0 0;
+    }
+    .save-btn {
+      padding: 9px 20px; background: var(--accent); border: none; border-radius: 7px;
+      color: #fff; font-size: 13px; font-weight: 600; cursor: pointer;
+      transition: opacity .2s; font-family: inherit;
+    }
+    .save-btn:hover { opacity: .85; }
+    .save-msg { font-size: 12px; color: var(--green); display: none; }
+    .save-msg.show { display: block; }
+
+    * { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+
+    /* ── Landing Page ────────────────────────────────────── */
+    .landing-screen {
+      position: fixed; inset: 0; background: var(--bg);
+      overflow-y: auto; z-index: 100;
+    }
+    .landing-wrap { max-width: 900px; margin: 0 auto; padding: 0 24px 60px; }
+    .landing-nav {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 20px 0; border-bottom: 1px solid var(--border-s);
+    }
+    .landing-nav-logo { display: flex; align-items: center; gap: 9px; font-weight: 700; font-size: 15px; }
+    .landing-signin-link {
+      padding: 7px 16px; background: var(--card); border: 1px solid var(--border);
+      border-radius: 7px; color: var(--muted); font-size: 13px; cursor: pointer;
+      transition: all .15s; font-family: inherit;
+    }
+    .landing-signin-link:hover { color: var(--text); background: var(--card-h); }
+
+    .landing-hero { text-align: center; padding: 64px 0 48px; }
+    .landing-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--accent-d); border: 1px solid var(--accent-b);
+      color: #818cf8; font-size: 12px; font-weight: 600;
+      padding: 5px 14px; border-radius: 20px; margin-bottom: 24px;
+      letter-spacing: .04em;
+    }
+    .landing-headline {
+      font-size: clamp(40px, 8vw, 68px); font-weight: 800;
+      letter-spacing: -2px; line-height: 1.05; margin-bottom: 20px;
+    }
+    .landing-gradient {
+      background: linear-gradient(135deg, #818cf8 0%, #c084fc 50%, #f472b6 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .landing-sub {
+      font-size: 17px; color: var(--muted); line-height: 1.7; max-width: 540px;
+      margin: 0 auto 36px;
+    }
+    .landing-btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-bottom: 14px; }
+    .landing-install-btn {
+      display: flex; align-items: center; gap: 10px;
+      padding: 14px 28px; background: var(--accent); border: none;
+      border-radius: 10px; color: #fff; font-size: 15px; font-weight: 700;
+      cursor: pointer; transition: opacity .2s, transform .15s; font-family: inherit;
+      box-shadow: 0 0 30px rgba(99,102,241,.3);
+    }
+    .landing-install-btn:hover { opacity: .9; transform: translateY(-1px); }
+    .landing-ghost-btn {
+      padding: 14px 24px; background: transparent; border: 1px solid var(--border);
+      border-radius: 10px; color: var(--muted); font-size: 14px; cursor: pointer;
+      transition: all .15s; font-family: inherit;
+    }
+    .landing-ghost-btn:hover { color: var(--text); border-color: #444; }
+    .landing-install-note { font-size: 12px; color: var(--dim); margin-top: 4px; }
+
+    .landing-features {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 14px; margin-top: 20px;
+    }
+    .landing-feature-card {
+      background: var(--panel); border: 1px solid var(--border);
+      border-radius: 12px; padding: 20px; transition: border-color .2s;
+    }
+    .landing-feature-card:hover { border-color: #333; }
+    .lf-icon {
+      width: 40px; height: 40px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; margin-bottom: 12px;
+    }
+    .lf-title { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+    .lf-desc { font-size: 12px; color: var(--muted); line-height: 1.6; }
+    .landing-footer {
+      text-align: center; font-size: 12px; color: var(--dim);
+      padding-top: 40px; border-top: 1px solid var(--border-s); margin-top: 40px;
+    }
+
+    /* ── Auth Screen ─────────────────────────────────────── */
+    .auth-screen {
+      position: fixed; inset: 0; background: var(--bg);
+      display: flex; align-items: center; justify-content: center; z-index: 100;
+    }
+    .auth-card {
+      background: var(--panel); border: 1px solid var(--border);
+      border-radius: 16px; padding: 36px; width: 380px;
+      display: flex; flex-direction: column; align-items: center;
+    }
+    .auth-logo {
+      width: 44px; height: 44px; background: var(--accent); border-radius: 11px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; font-weight: 800; color: #fff; margin-bottom: 10px;
+    }
+    .auth-title { font-size: 20px; font-weight: 700; letter-spacing: -.3px; }
+    .auth-sub { font-size: 13px; color: var(--muted); margin-bottom: 22px; margin-top: 2px; }
+    .auth-tabs {
+      display: flex; width: 100%; background: var(--card);
+      padding: 3px; border-radius: 8px; gap: 2px; margin-bottom: 18px;
+    }
+    .auth-tab {
+      flex: 1; text-align: center; padding: 7px; border-radius: 6px;
+      font-size: 13px; color: var(--muted); cursor: pointer; transition: all .15s;
+    }
+    .auth-tab.active { background: var(--panel); color: var(--text); font-weight: 500; }
+    .auth-form { width: 100%; display: flex; flex-direction: column; gap: 10px; }
+    .auth-input {
+      width: 100%; background: var(--card); border: 1px solid var(--border);
+      border-radius: 8px; padding: 10px 13px; color: var(--text); font-size: 14px;
+      outline: none; transition: border-color .2s; font-family: inherit;
+    }
+    .auth-input:focus { border-color: var(--accent); }
+    .auth-input::placeholder { color: var(--dim); }
+    .auth-input.err { border-color: var(--red); }
+    .auth-btn {
+      width: 100%; padding: 11px; background: var(--accent); border: none;
+      border-radius: 8px; color: #fff; font-size: 14px; font-weight: 600;
+      cursor: pointer; transition: opacity .2s; font-family: inherit; margin-top: 4px;
+    }
+    .auth-btn:hover { opacity: .85; }
+    .auth-btn:disabled { opacity: .5; cursor: not-allowed; }
+    .auth-error {
+      margin-top: 10px; font-size: 12px; color: var(--red);
+      text-align: center; min-height: 16px; width: 100%;
+    }
+    .auth-note { font-size: 11px; color: var(--dim); text-align: center; margin-top: 10px; line-height: 1.6; }
+
+    /* ── Pending / Denied screens ────────────────────────── */
+    .status-screen {
+      position: fixed; inset: 0; background: var(--bg);
+      display: flex; align-items: center; justify-content: center; z-index: 100;
+    }
+    .status-card {
+      background: var(--panel); border: 1px solid var(--border);
+      border-radius: 16px; padding: 40px 36px; width: 380px; text-align: center;
+    }
+    .status-icon { font-size: 48px; margin-bottom: 16px; display: block; }
+    .status-title { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+    .status-desc { font-size: 13px; color: var(--muted); line-height: 1.7; margin-bottom: 20px; }
+    .status-email {
+      font-size: 12px; color: var(--dim); background: var(--card);
+      border: 1px solid var(--border); border-radius: 6px; padding: 6px 12px;
+      margin-bottom: 18px; display: inline-block;
+    }
+    .status-btn {
+      width: 100%; padding: 10px; border-radius: 8px; font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: all .2s; font-family: inherit; margin-bottom: 8px;
+    }
+    .status-btn.primary { background: var(--accent); border: none; color: #fff; }
+    .status-btn.primary:hover { opacity: .85; }
+    .status-btn.ghost { background: transparent; border: 1px solid var(--border); color: var(--muted); }
+    .status-btn.ghost:hover { border-color: var(--red); color: var(--red); background: rgba(239,68,68,.05); }
+
+    /* ── Profile Setup Screen ────────────────────────────── */
+    .profile-setup {
+      position: fixed; inset: 0; background: var(--bg);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 100;
+    }
+    .setup-card {
+      background: var(--panel); border: 1px solid var(--border);
+      border-radius: 16px; padding: 40px 36px; width: 380px;
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+    }
+    .setup-logo {
+      width: 48px; height: 48px; background: var(--accent); border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; font-weight: 800; color: #fff; margin-bottom: 10px;
+    }
+    .setup-title { font-size: 22px; font-weight: 700; letter-spacing: -.4px; margin-bottom: 2px; }
+    .setup-sub { font-size: 13px; color: var(--muted); margin-bottom: 20px; text-align: center; }
+    .setup-input {
+      width: 100%; background: var(--card); border: 1px solid var(--border);
+      border-radius: 8px; padding: 10px 14px; color: var(--text); font-size: 15px;
+      outline: none; font-family: inherit; transition: border-color .2s; text-align: center;
+    }
+    .setup-input:focus { border-color: var(--accent); }
+    .setup-input::placeholder { color: var(--dim); }
+    .color-picker { display: flex; gap: 8px; margin: 12px 0 4px; flex-wrap: wrap; justify-content: center; }
+    .color-swatch {
+      width: 28px; height: 28px; border-radius: 50%; cursor: pointer;
+      transition: transform .15s, box-shadow .15s; border: 2px solid transparent;
+    }
+    .color-swatch:hover { transform: scale(1.15); }
+    .color-swatch.selected { border-color: #fff; box-shadow: 0 0 0 2px var(--accent); transform: scale(1.1); }
+    .setup-btn {
+      width: 100%; margin-top: 14px; padding: 12px; background: var(--accent);
+      border: none; border-radius: 8px; color: #fff; font-size: 14px; font-weight: 600;
+      cursor: pointer; transition: opacity .2s; font-family: inherit;
+    }
+    .setup-btn:hover { opacity: .85; }
+    .setup-avatar-preview {
+      width: 56px; height: 56px; border-radius: 50%; display: flex;
+      align-items: center; justify-content: center; font-weight: 700; font-size: 20px;
+      color: #fff; margin-bottom: 6px; transition: background .2s;
+    }
+
+    /* ── Avatar Dropdown ─────────────────────────────────── */
+    .avatar-wrap { position: relative; }
+    .avatar {
+      width: 32px; height: 32px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 12px; cursor: pointer;
+      transition: opacity .2s; user-select: none;
+    }
+    .avatar:hover { opacity: .85; }
+    .avatar-menu {
+      position: absolute; top: calc(100% + 8px); right: 0;
+      background: var(--panel); border: 1px solid var(--border);
+      border-radius: 10px; min-width: 210px; z-index: 50;
+      box-shadow: 0 8px 30px rgba(0,0,0,.5);
+      display: none;
+    }
+    .avatar-menu.open { display: block; }
+    .am-top {
+      padding: 14px; display: flex; align-items: center; gap: 10px;
+      border-bottom: 1px solid var(--border-s);
+    }
+    .am-avatar {
+      width: 36px; height: 36px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 14px; color: #fff; flex-shrink: 0;
+    }
+    .am-name { font-size: 13px; font-weight: 600; }
+    .am-sub  { font-size: 11px; color: var(--muted); margin-top: 1px; }
+    .am-item {
+      padding: 9px 14px; font-size: 13px; color: var(--muted);
+      cursor: pointer; transition: all .15s; display: flex; align-items: center; gap: 8px;
+    }
+    .am-item:hover { background: var(--card); color: var(--text); }
+    .am-item.danger:hover { color: var(--red); background: rgba(239,68,68,.05); }
+    .am-sep { height: 1px; background: var(--border-s); margin: 3px 0; }
+
+    /* ── Profile Switcher Modal ───────────────────────────── */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.7);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 200; backdrop-filter: blur(4px);
+    }
+    .modal {
+      background: var(--panel); border: 1px solid var(--border);
+      border-radius: 14px; padding: 24px; width: 360px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.6);
+    }
+    .modal-title { font-size: 16px; font-weight: 700; margin-bottom: 16px; }
+    .profile-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+    .profile-row {
+      display: flex; align-items: center; gap: 12px; padding: 10px 12px;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 8px; cursor: pointer; transition: border-color .15s;
+    }
+    .profile-row:hover { border-color: var(--accent-b); }
+    .profile-row.current { border-color: var(--accent-b); background: var(--accent-d); }
+    .pr-av {
+      width: 34px; height: 34px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 13px; color: #fff; flex-shrink: 0;
+    }
+    .pr-name { font-size: 13px; font-weight: 500; }
+    .pr-sub  { font-size: 11px; color: var(--muted); margin-top: 1px; }
+    .pr-active { margin-left: auto; font-size: 11px; color: var(--accent); font-weight: 600; }
+    .modal-add {
+      width: 100%; padding: 9px; background: transparent;
+      border: 1px dashed var(--accent-b); border-radius: 8px;
+      color: var(--accent); font-size: 13px; cursor: pointer;
+      transition: background .2s; font-family: inherit;
+    }
+    .modal-add:hover { background: var(--accent-d); }
+    .modal-close {
+      width: 100%; margin-top: 10px; padding: 9px; background: transparent;
+      border: 1px solid var(--border); border-radius: 8px;
+      color: var(--muted); font-size: 13px; cursor: pointer;
+      transition: all .2s; font-family: inherit;
+    }
+    .modal-close:hover { background: var(--card); color: var(--text); }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Topbar -->
+  <header class="topbar">
+    <div class="logo">
+      <div class="logo-icon">M</div>
+      MailCal
+    </div>
+    <div class="search-wrap" id="searchWrap">
+      <span class="search-icon">⌕</span>
+      <input type="text" placeholder="Search emails, events, contacts…" />
+    </div>
+    <div class="topbar-r">
+      <div class="icon-btn notif" title="Notifications">🔔</div>
+      <div class="icon-btn" title="Settings" onclick="goSettings()" id="settingsBtn">⚙</div>
+      <div class="avatar-wrap">
+        <div class="avatar" id="topAvatar" onclick="toggleAvatarMenu()" title="Account"></div>
+        <div class="avatar-menu" id="avatarMenu">
+          <div class="am-top">
+            <div class="am-avatar" id="menuAvatar"></div>
+            <div>
+              <div class="am-name" id="menuName">—</div>
+              <div class="am-sub" id="menuSub">—</div>
+            </div>
+          </div>
+          <div class="am-item" onclick="closeAvatarMenu();goSettings()">⚙&nbsp; Settings</div>
+          <div class="am-sep"></div>
+          <div class="am-item" onclick="closeAvatarMenu();showProfileSwitcher()">👤&nbsp; Switch Profile</div>
+          <div class="am-item" onclick="closeAvatarMenu();showProfileSetup(true)">＋&nbsp; Add Profile</div>
+          <div class="am-sep"></div>
+          <div class="am-item danger" onclick="closeAvatarMenu();deleteCurrentProfile()">✕&nbsp; Remove This Profile</div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Body -->
+  <div class="body-wrap">
+
+    <!-- Sidebar -->
+    <nav class="sidebar">
+      <button class="compose-btn">✏&#xFE0E;&nbsp; Compose</button>
+
+      <div class="nav-item active" id="homeNavItem" onclick="setNav(this,'home')">
+        <span class="ni">⊞</span> Home
+      </div>
+      <div class="sidebar-sep"></div>
+
+      <div class="nav-lbl">Mail</div>
+      <div class="nav-item active" onclick="setNav(this,'inbox')">
+        <span class="ni">📥</span> Inbox
+      </div>
+      <div class="nav-item" onclick="setNav(this,'starred')">
+        <span class="ni">⭐</span> Starred
+      </div>
+      <div class="nav-item" onclick="setNav(this,'sent')">
+        <span class="ni">📤</span> Sent
+      </div>
+      <div class="nav-item" onclick="setNav(this,'drafts')">
+        <span class="ni">📝</span> Drafts
+      </div>
+      <div class="nav-item" onclick="setNav(this,'spam')">
+        <span class="ni">🚫</span> Spam
+      </div>
+      <div class="nav-item" onclick="setNav(this,'trash')">
+        <span class="ni">🗑</span> Trash
+      </div>
+
+      <div class="sidebar-sep"></div>
+      <div class="nav-lbl">Calendar</div>
+      <div class="nav-item" onclick="setNav(this,'calendar')">
+        <span class="ni">📅</span> My Calendar
+      </div>
+      <div class="nav-item" onclick="setNav(this,'shared')">
+        <span class="ni">👥</span> Shared
+      </div>
+
+      <div class="sidebar-sep"></div>
+      <div class="nav-item" onclick="goSettings()">
+        <span class="ni">⚙</span> Settings
+      </div>
+    </nav>
+
+    <!-- Dynamic content area -->
+    <div id="content"></div>
+
+  </div>
+</div>
+
+<script>
+// ── Supabase ──────────────────────────────────────────────────────
+// Fill these in after creating your Supabase project at supabase.com
+const SUPABASE_URL  = 'https://xcxbhmsrcbhmfbqqqfaf.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhjeGJobXNyY2JobWZicXFxZmFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzODA2ODcsImV4cCI6MjA5NDk1NjY4N30.2BnmUVsFxKDehpbIKR1gPYqSpTkm3xn-xF0OytzgfYg';
+
+let _sb = null;
+function getSB() {
+  if (!_sb && SUPABASE_URL !== 'YOUR_SUPABASE_URL') {
+    _sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+  }
+  return _sb;
+}
+
+function supabaseConfigured() {
+  return SUPABASE_URL !== 'YOUR_SUPABASE_URL' && SUPABASE_ANON !== 'YOUR_SUPABASE_ANON_KEY';
+}
+
+// Auth state: 'no_session' | 'pending' | 'approved' | 'denied'
+let AUTH_SESSION = null;
+
+async function getAuthStatus() {
+  const sb = getSB();
+  if (!sb) return 'no_session';
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) return 'no_session';
+  AUTH_SESSION = session;
+  const { data } = await sb.from('accounts').select('status').eq('id', session.user.id).single();
+  return data ? data.status : 'pending';
+}
+
+async function sbSignUp(name, email, password) {
+  const sb = getSB();
+  const { data, error } = await sb.auth.signUp({ email, password });
+  if (error) throw error;
+  await sb.from('accounts').upsert({
+    id: data.user.id, email, name, status: 'pending', created_at: new Date().toISOString()
+  });
+  AUTH_SESSION = data.session;
+  return data;
+}
+
+async function sbSignIn(email, password) {
+  const sb = getSB();
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  if (error) throw error;
+  AUTH_SESSION = data.session;
+  await sb.from('accounts').update({ last_seen: new Date().toISOString() }).eq('id', data.user.id);
+  return data;
+}
+
+async function sbSignOut() {
+  const sb = getSB();
+  if (sb) await sb.auth.signOut();
+  AUTH_SESSION = null;
+  renderAuthScreen();
+}
+
+// ── Config ────────────────────────────────────────────────────────
+const DEFAULTS = {
+  gmail:      { connected: false, email: '', clientId: '' },
+  outlook:    { connected: false, email: '', clientId: '', tenantId: '' },
+  googleCal:  { connected: false },
+  outlookCal: { connected: false },
+  ai: {
+    active: '',
+    ollama: { url: 'http://localhost:11434', model: 'llama3.1:8b' },
+    gemini: { key: '' },
+    claude:  { key: '' },
+    openai:  { key: '', model: 'gpt-4o-mini' },
+  },
+  general: { notifications: true, calendarReminders: true, autoDetectMeetings: true, emailDays: 7 },
+  theme:   { accent: '', scheme: 'mono' },
+  dashboard: { widgets: ['unread','upcoming','quickcompose','ai_quick'] }
+};
+
+const PROFILE_COLORS = [
+  '#6366f1','#8b5cf6','#ec4899','#ef4444',
+  '#f97316','#eab308','#22c55e','#06b6d4',
+];
+
+const ACCENT_COLORS = [
+  { name: 'Indigo',  hex: '#6366f1' },
+  { name: 'Violet',  hex: '#8b5cf6' },
+  { name: 'Pink',    hex: '#ec4899' },
+  { name: 'Red',     hex: '#ef4444' },
+  { name: 'Orange',  hex: '#f97316' },
+  { name: 'Amber',   hex: '#eab308' },
+  { name: 'Green',   hex: '#22c55e' },
+  { name: 'Cyan',    hex: '#06b6d4' },
+  { name: 'Blue',    hex: '#3b82f6' },
+  { name: 'Rose',    hex: '#f43f5e' },
+];
+
+function hexToRgba(hex, alpha) {
+  const r = parseInt(hex.slice(1,3), 16);
+  const g = parseInt(hex.slice(3,5), 16);
+  const b = parseInt(hex.slice(5,7), 16);
+  return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
+}
+
+function applyTheme() {
+  const t = CFG.theme || {};
+  const p = getActiveProfile();
+  const accent = t.accent || (p ? p.color : '#6366f1');
+  const scheme = t.scheme || 'mono';
+  const root = document.documentElement.style;
+  root.setProperty('--accent',   accent);
+  root.setProperty('--accent-d', hexToRgba(accent, .12));
+  root.setProperty('--accent-b', hexToRgba(accent, .25));
+  if (t._joy) {
+    root.setProperty('--email-color',  '#f97316');
+    root.setProperty('--cal-color',    '#22c55e');
+    root.setProperty('--ai-color',     '#eab308');
+    root.setProperty('--events-color', '#3b82f6');
+  } else if (scheme === 'multi') {
+    root.setProperty('--email-color',  '#ef4444');
+    root.setProperty('--cal-color',    '#3b82f6');
+    root.setProperty('--ai-color',     '#8b5cf6');
+    root.setProperty('--events-color', '#22c55e');
+  } else {
+    root.setProperty('--email-color',  accent);
+    root.setProperty('--cal-color',    accent);
+    root.setProperty('--ai-color',     accent);
+    root.setProperty('--events-color', accent);
+  }
+}
+
+// ── Profile Store ─────────────────────────────────────────────────
+function getPStore() {
+  try { return JSON.parse(localStorage.getItem('mailcal_profiles')) || { active: null, profiles: {} }; }
+  catch { return { active: null, profiles: {} }; }
+}
+function savePStore(s) { localStorage.setItem('mailcal_profiles', JSON.stringify(s)); }
+
+function getActiveProfile() {
+  const s = getPStore();
+  return s.active ? s.profiles[s.active] : null;
+}
+
+function loadCfg() {
+  const p = getActiveProfile();
+  return (p && p.config) ? p.config : structuredClone(DEFAULTS);
+}
+function saveCfg(cfg) {
+  const s = getPStore();
+  if (s.active && s.profiles[s.active]) {
+    s.profiles[s.active].config = cfg;
+    savePStore(s);
+  }
+}
+
+function initials(name) {
+  return name.trim().split(/\s+/).map(w => w[0].toUpperCase()).slice(0, 2).join('');
+}
+
+function updateAvatarUI() {
+  const p = getActiveProfile();
+  const s = getPStore();
+  const count = Object.keys(s.profiles).length;
+  if (!p) return;
+  const av = document.getElementById('topAvatar');
+  const mav = document.getElementById('menuAvatar');
+  const mn  = document.getElementById('menuName');
+  const ms  = document.getElementById('menuSub');
+  if (av)  { av.textContent = initials(p.name); av.style.background = p.color; }
+  if (mav) { mav.textContent = initials(p.name); mav.style.background = p.color; }
+  if (mn)  mn.textContent = p.name;
+  if (ms)  ms.textContent = count === 1 ? '1 profile on this device' : `${count} profiles on this device`;
+}
+
+let CFG = loadCfg();
+
+// ── Router ────────────────────────────────────────────────────────
+let currentView = 'home';
+
+function goSettings() {
+  currentView = 'settings';
+  document.getElementById('searchWrap').style.display = 'none';
+  renderSettings('accounts');
+}
+function goHome() {
+  currentView = 'home';
+  document.getElementById('searchWrap').style.display = '';
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const h = document.getElementById('homeNavItem');
+  if (h) h.classList.add('active');
+  renderHome();
+}
+function goDashboard() {
+  currentView = 'dashboard';
+  document.getElementById('searchWrap').style.display = '';
+  renderDashboard();
+}
+
+function setNav(el, section) {
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  el.classList.add('active');
+  if (section === 'home') { goHome(); return; }
+  if (currentView !== 'dashboard') goDashboard();
+}
+
+// ── Calendar ──────────────────────────────────────────────────────
+let calCur = new Date();
+
+function renderCalWidget() {
+  const now = new Date();
+  const y = calCur.getFullYear(), m = calCur.getMonth();
+  const lbl = calCur.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  const firstDow = new Date(y, m, 1).getDay();
+  const total    = new Date(y, m + 1, 0).getDate();
+  const prevLast = new Date(y, m, 0).getDate();
+  const DAYS = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+
+  let h = DAYS.map(d => `<div class="cdlbl">${d}</div>`).join('');
+  for (let i = 0; i < firstDow; i++)
+    h += `<div class="cd other">${prevLast - firstDow + i + 1}</div>`;
+  for (let d = 1; d <= total; d++) {
+    const isToday = d === now.getDate() && m === now.getMonth() && y === now.getFullYear();
+    h += `<div class="cd ${isToday ? 'today' : ''}">${d}</div>`;
+  }
+
+  return `
+    <div class="mini-cal">
+      <div class="cal-head">
+        <div class="cal-month">${lbl}</div>
+        <div class="cal-navs">
+          <button class="cal-nb" onclick="shiftCal(-1)">‹</button>
+          <button class="cal-nb" onclick="shiftCal(1)">›</button>
+        </div>
+      </div>
+      <div class="cal-grid">${h}</div>
+    </div>`;
+}
+
+function shiftCal(d) {
+  calCur = new Date(calCur.getFullYear(), calCur.getMonth() + d, 1);
+  // re-render just the calendar widget
+  const panel = document.querySelector('.mini-cal');
+  if (panel) panel.outerHTML = renderCalWidget();
+  // after replacing, re-query won't work; re-render whole right panel
+  renderDashboard();
+}
+
+// ── Home view ─────────────────────────────────────────────────────
+let _dragWidget = null;
+
+function widgetDragStart(e, el) {
+  _dragWidget = el;
+  el.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+}
+function widgetDragEnd(el) {
+  el.classList.remove('dragging');
+  document.querySelectorAll('.widget.drag-over').forEach(w => w.classList.remove('drag-over'));
+  _dragWidget = null;
+}
+function widgetDragOver(e, el) {
+  e.preventDefault();
+  if (_dragWidget && _dragWidget !== el) {
+    document.querySelectorAll('.widget.drag-over').forEach(w => w.classList.remove('drag-over'));
+    el.classList.add('drag-over');
+  }
+}
+function widgetDrop(e, el) {
+  e.preventDefault();
+  el.classList.remove('drag-over');
+  if (!_dragWidget || _dragWidget === el) return;
+  const grid = el.parentNode;
+  const kids = [...grid.children];
+  const si = kids.indexOf(_dragWidget);
+  const ti = kids.indexOf(el);
+  if (si < ti) grid.insertBefore(_dragWidget, el.nextSibling);
+  else grid.insertBefore(_dragWidget, el);
+  const newOrder = [...grid.querySelectorAll('.widget')].map(w => w.dataset.wid);
+  if (!CFG.dashboard) CFG.dashboard = {};
+  CFG.dashboard.widgets = newOrder;
+  saveCfg(CFG);
+}
+function toggleWidgetExpand(btn) {
+  const w = btn.closest('.widget');
+  w.classList.toggle('expanded');
+  btn.textContent = w.classList.contains('expanded') ? '⤡' : '⤢';
+}
+
+function _buildWidget(id, iconHtml, title, bodyHtml, footerHtml) {
+  return '<div class="widget" data-wid="' + id + '" draggable="true"' +
+    ' ondragstart="widgetDragStart(event,this)" ondragend="widgetDragEnd(this)"' +
+    ' ondragover="widgetDragOver(event,this)" ondrop="widgetDrop(event,this)">' +
+    '<div class="widget-header">' +
+      '<span class="widget-drag" title="Drag to reorder">&#x2807;</span>' +
+      '<span class="widget-icon">' + iconHtml + '</span>' +
+      '<span class="widget-title">' + title + '</span>' +
+      '<button class="widget-action-btn" onclick="toggleWidgetExpand(this)" title="Expand/collapse">&#x2922;</button>' +
+    '</div>' +
+    '<div class="widget-body">' + bodyHtml + '</div>' +
+    (footerHtml ? '<div class="widget-footer">' + footerHtml + '</div>' : '') +
+    '</div>';
+}
+
+function _wUnread() {
+  const hasEmail = CFG.gmail.connected || CFG.outlook.connected;
+  const days = (CFG.general && CFG.general.emailDays) ? CFG.general.emailDays : 7;
+  const body = hasEmail
+    ? '<div class="widget-stat-big" style="color:var(--email-color)">—</div>' +
+      '<div class="widget-stat-label">unread emails &nbsp;·&nbsp; syncing soon</div>'
+    : '<div style="font-size:12px;color:var(--dim);line-height:1.7">' +
+        'No email account connected yet.<br>' +
+        '<span style="color:var(--accent);cursor:pointer" onclick="goSettings()">Connect one in Settings &#x2192;</span>' +
+      '</div>';
+  const opts = [3,7,14,30].map(function(d) {
+    return '<option value="' + d + '"' + (d === days ? ' selected' : '') + '>' + d + ' days</option>';
+  }).join('');
+  const footer = '<span class="widget-footer-label">Showing past</span>' +
+    '<select onchange="setEmailDays(+this.value)">' + opts + '</select>' +
+    '<span class="widget-footer-label">to today</span>';
+  return _buildWidget('unread',
+    '<span style="color:var(--email-color)">&#128231;</span>', 'Unread Emails', body, footer);
+}
+
+function _wUpcoming() {
+  const hasCal = CFG.googleCal.connected || CFG.outlookCal.connected;
+  const body = hasCal
+    ? '<div style="font-size:12px;color:var(--dim);line-height:1.7">Calendar sync coming soon.<br>Your events will appear here.</div>'
+    : '<div style="font-size:12px;color:var(--dim);line-height:1.7">' +
+        'No calendar connected.<br>' +
+        '<span style="color:var(--accent);cursor:pointer" onclick="goSettings()">Add one in Settings &#x2192;</span>' +
+      '</div>';
+  return _buildWidget('upcoming',
+    '<span style="color:var(--cal-color)">&#128197;</span>', 'Upcoming Events', body, '');
+}
+
+function _wCompose() {
+  const hasEmail = CFG.gmail.connected || CFG.outlook.connected;
+  const body = '<button class="pcard-btn connect" style="background:var(--email-color);border:none;margin-top:0" onclick="' +
+    (hasEmail ? 'alert(\'Compose coming in the next build!\')'  : 'goSettings()') + '">' +
+    (hasEmail ? '&#x270f;&#xfe0e;&nbsp; New Email' : '+ Connect Email Account') + '</button>';
+  return _buildWidget('quickcompose', '&#x270f;&#xfe0e;', 'Quick Compose', body, '');
+}
+
+function _wAI() {
+  const hasAI = !!CFG.ai.active;
+  const body = hasAI
+    ? '<div style="display:flex;gap:6px">' +
+        '<input class="chat-inp" style="flex:1" id="homeAiInp" placeholder="Ask your assistant…"' +
+        ' onkeydown="if(event.key===\'Enter\'){event.preventDefault();homeAiSend()}">' +
+        '<button class="send-btn" style="background:var(--ai-color);flex-shrink:0" onclick="homeAiSend()">&#x2191;</button>' +
+      '</div>' +
+      '<div id="homeAiReply" style="margin-top:8px;font-size:12px;color:var(--muted);min-height:0"></div>'
+    : '<div style="font-size:12px;color:var(--dim);line-height:1.7">' +
+        'No AI provider configured.<br>' +
+        '<span style="color:var(--accent);cursor:pointer" onclick="goSettings()">Set one up in Settings &#x2192;</span>' +
+      '</div>';
+  return _buildWidget('ai_quick',
+    '<span style="color:var(--ai-color)">&#10022;</span>', 'AI Assistant', body, '');
+}
+
+function homeAiSend() {
+  const inp = document.getElementById('homeAiInp');
+  const rep = document.getElementById('homeAiReply');
+  if (!inp || !inp.value.trim()) return;
+  inp.value = '';
+  if (rep) rep.textContent = 'Full AI integration coming in the next build.';
+}
+
+function setEmailDays(d) {
+  if (!CFG.general) CFG.general = {};
+  CFG.general.emailDays = d;
+  saveCfg(CFG);
+}
+
+function renderHome() {
+  const p    = getActiveProfile();
+  const name = p ? p.name.split(' ')[0] : 'there';
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  const dateStr  = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+
+  const order = (CFG.dashboard && CFG.dashboard.widgets) ? CFG.dashboard.widgets
+    : ['unread','upcoming','quickcompose','ai_quick'];
+  const map = { unread: _wUnread, upcoming: _wUpcoming, quickcompose: _wCompose, ai_quick: _wAI };
+  const widgetsHtml = order.map(function(id) { return map[id] ? map[id]() : ''; }).join('');
+
+  document.getElementById('content').innerHTML =
+    '<div class="home-view">' +
+      '<div class="home-greeting">' +
+        '<div class="home-greeting-name">' + greeting + ', ' + name + '!</div>' +
+        '<div class="home-greeting-date">' + dateStr + '</div>' +
+      '</div>' +
+      '<div class="widget-grid" id="widgetGrid">' + widgetsHtml + '</div>' +
+    '</div>';
+}
+
+// ── Dashboard ─────────────────────────────────────────────────────
+function renderDashboard() {
+  const hasEmail = CFG.gmail.connected || CFG.outlook.connected;
+  const hasAI    = !!CFG.ai.active;
+  const hasCal   = CFG.googleCal.connected || CFG.outlookCal.connected;
+
+  const emailListHTML = hasEmail
+    ? `<div class="empty-state">
+        <div class="empty-icon">📬</div>
+        <div class="empty-title">Loading your emails…</div>
+        <div class="empty-desc">Email sync coming in the next build.</div>
+       </div>`
+    : `<div class="empty-state">
+        <div class="empty-icon">📭</div>
+        <div class="empty-title">No accounts connected</div>
+        <div class="empty-desc">Connect Gmail or Outlook to start reading your emails.</div>
+        <button class="empty-btn" onclick="goSettings()">Connect an Account</button>
+       </div>`;
+
+  const readerHTML = `
+    <div class="empty-state">
+      <div class="empty-icon" style="font-size:44px;opacity:.25">✉️</div>
+      <div class="empty-title" style="color:var(--dim)">${hasEmail ? 'Select an email to read' : 'No account connected'}</div>
+    </div>`;
+
+  const upcomingHTML = hasCal
+    ? `<div class="empty-state" style="height:auto;padding:8px 0">
+        <div class="empty-desc">Calendar sync coming in the next build.</div>
+       </div>`
+    : `<div style="font-size:12px;color:var(--dim);padding:4px 0">
+        No calendar connected — <span style="color:var(--accent);cursor:pointer" onclick="goSettings()">add one</span>
+       </div>`;
+
+  const aiChatHTML = hasAI
+    ? `<div class="chat-msgs" id="chatMsgs">
+        <div class="bubble ai">Hi! I'm ready to help. Connect your email and calendar to get started.</div>
+       </div>
+       <div class="chat-input-row">
+         <textarea class="chat-inp" id="chatInp" placeholder="Ask anything…" rows="1"
+           onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg()}"></textarea>
+         <button class="send-btn" onclick="sendMsg()">↑</button>
+       </div>`
+    : `<div class="ai-disabled">
+        <div class="ai-disabled-icon">✦</div>
+        <div class="ai-disabled-txt">No AI provider connected.<br>Add one in Settings to enable the assistant.</div>
+        <button class="ai-disabled-btn" onclick="goSettings()">Connect AI</button>
+       </div>`;
+
+  document.getElementById('content').innerHTML = `
+    <div class="dash-grid">
+
+      <!-- Email list -->
+      <div class="list-panel">
+        <div class="list-head">
+          <div class="list-title">Inbox</div>
+          <div class="tabs">
+            <div class="tab active" onclick="setTab(this)">All</div>
+            <div class="tab" onclick="setTab(this)">Unread</div>
+            <div class="tab" onclick="setTab(this)">Starred</div>
+          </div>
+        </div>
+        <div class="email-list">${emailListHTML}</div>
+      </div>
+
+      <!-- Reader -->
+      <div class="reader">${readerHTML}</div>
+
+      <!-- Right panel -->
+      <div class="right-panel">
+        ${renderCalWidget()}
+        <div class="upcoming">
+          <div class="sec-lbl">Upcoming</div>
+          ${upcomingHTML}
+        </div>
+        <div class="ai-chat">
+          <div class="chat-head">
+            <div class="ai-icon">✦</div>
+            <div class="chat-ttl">AI Assistant</div>
+            <div class="chat-sub">${hasAI ? CFG.ai.active : 'Not connected'}</div>
+          </div>
+          ${aiChatHTML}
+        </div>
+      </div>
+
+    </div>`;
+}
+
+function setTab(el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+}
+
+function sendMsg() {
+  const inp = document.getElementById('chatInp');
+  const txt = inp.value.trim();
+  if (!txt) return;
+  inp.value = '';
+  addBubble(txt, 'user');
+  setTimeout(() => addBubble("Got it — once your accounts are fully synced I can help with that.", 'ai'), 600);
+}
+function addBubble(text, who) {
+  const msgs = document.getElementById('chatMsgs');
+  if (!msgs) return;
+  const b = document.createElement('div');
+  b.className = `bubble ${who}`;
+  b.textContent = text;
+  msgs.appendChild(b);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+// ── Settings ──────────────────────────────────────────────────────
+let settingsTab = 'accounts';
+
+function goSettingsTab(tab) {
+  settingsTab = tab;
+  document.querySelectorAll('.snav-item').forEach(i => i.classList.remove('active'));
+  document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+  document.getElementById('settingsContent').innerHTML = renderSettingsTab(tab);
+}
+
+function renderSettings(tab) {
+  settingsTab = tab || 'accounts';
+  const tabs = [
+    { id: 'accounts', icon: '📧', label: 'Accounts' },
+    { id: 'calendar', icon: '📅', label: 'Calendar' },
+    { id: 'ai',       icon: '✦',  label: 'AI Assistant' },
+    { id: 'general',  icon: '🎨',  label: 'General & Theme' },
+  ];
+
+  const navHTML = tabs.map(t => `
+    <div class="snav-item ${t.id === settingsTab ? 'active' : ''}"
+         data-tab="${t.id}" onclick="goSettingsTab('${t.id}')">
+      <span class="sni">${t.icon}</span> ${t.label}
+    </div>`).join('');
+
+  document.getElementById('content').innerHTML = `
+    <div class="settings-view">
+      <nav class="settings-nav">
+        <div class="settings-nav-title">Settings</div>
+        ${navHTML}
+        <div style="margin-top:auto">
+          <div class="snav-item" onclick="goHome()" style="margin-top:8px">
+            <span class="sni">←</span> Back to App
+          </div>
+        </div>
+      </nav>
+      <div class="settings-content" id="settingsContent">
+        ${renderSettingsTab(settingsTab)}
+      </div>
+    </div>`;
+}
+
+function renderSettingsTab(tab) {
+  if (tab === 'accounts') return renderAccountsTab();
+  if (tab === 'calendar') return renderCalendarTab();
+  if (tab === 'ai')       return renderAITab();
+  if (tab === 'general')  return renderGeneralTab();
+  return '';
+}
+
+// ── Accounts tab ──────────────────────────────────────────────────
+function renderAccountsTab() {
+  return `
+    <div>
+      <div class="settings-section-title">Email Accounts</div>
+      <div class="settings-section-desc">Connect your email accounts to read, send, and manage emails.</div>
+      <div class="provider-grid">
+        ${gmailCard()}
+        ${outlookCard()}
+      </div>
+    </div>`;
+}
+
+function gmailCard() {
+  const g = CFG.gmail;
+  if (g.connected) {
+    return `<div class="provider-card connected">
+      <div class="pcard-head">
+        <div class="pcard-logo" style="background:var(--gmail)">G</div>
+        <div><div class="pcard-name">Gmail</div><div class="pcard-status on">● Connected</div></div>
+      </div>
+      <div class="connected-info">
+        <div class="ci-dot"></div>
+        <div class="ci-email">${g.email || 'Connected'}</div>
+      </div>
+      <button class="pcard-btn disconnect" onclick="disconnect('gmail')">Disconnect</button>
+    </div>`;
+  }
+  return `<div class="provider-card">
+    <div class="pcard-head">
+      <div class="pcard-logo" style="background:var(--gmail)">G</div>
+      <div><div class="pcard-name">Gmail</div><div class="pcard-status off">Not connected</div></div>
+    </div>
+    <div class="field-group">
+      <label>OAuth Client ID</label>
+      <input type="text" id="gmailClientId" placeholder="xxxxx.apps.googleusercontent.com"
+             value="${g.clientId}" oninput="CFG.gmail.clientId=this.value" />
+      <div class="field-help">Get this from <a onclick="openHelp('gmail')">Google Cloud Console →</a></div>
+    </div>
+    <button class="pcard-btn connect" onclick="connectOAuth('gmail')">Connect with Google</button>
+  </div>`;
+}
+
+function outlookCard() {
+  const o = CFG.outlook;
+  if (o.connected) {
+    return `<div class="provider-card connected">
+      <div class="pcard-head">
+        <div class="pcard-logo" style="background:var(--outlook)">O</div>
+        <div><div class="pcard-name">Outlook / Microsoft</div><div class="pcard-status on">● Connected</div></div>
+      </div>
+      <div class="connected-info">
+        <div class="ci-dot"></div>
+        <div class="ci-email">${o.email || 'Connected'}</div>
+      </div>
+      <button class="pcard-btn disconnect" onclick="disconnect('outlook')">Disconnect</button>
+    </div>`;
+  }
+  return `<div class="provider-card">
+    <div class="pcard-head">
+      <div class="pcard-logo" style="background:var(--outlook)">O</div>
+      <div><div class="pcard-name">Outlook / Microsoft</div><div class="pcard-status off">Not connected</div></div>
+    </div>
+    <div class="field-group">
+      <label>Application (Client) ID</label>
+      <input type="text" id="outlookClientId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+             value="${o.clientId}" oninput="CFG.outlook.clientId=this.value" />
+      <div class="field-help">Get this from <a onclick="openHelp('outlook')">Azure App Registrations →</a></div>
+    </div>
+    <div class="field-group">
+      <label>Tenant ID <span style="font-weight:400;text-transform:none">(optional)</span></label>
+      <input type="text" id="outlookTenantId" placeholder="common"
+             value="${o.tenantId}" oninput="CFG.outlook.tenantId=this.value" />
+    </div>
+    <button class="pcard-btn connect" onclick="connectOAuth('outlook')">Connect with Microsoft</button>
+  </div>`;
+}
+
+// ── Calendar tab ──────────────────────────────────────────────────
+function renderCalendarTab() {
+  return `
+    <div>
+      <div class="settings-section-title">Calendar</div>
+      <div class="settings-section-desc">Connect your calendars to view events and add meetings from emails.</div>
+      <div class="provider-grid">
+        ${googleCalCard()}
+        ${outlookCalCard()}
+      </div>
+    </div>`;
+}
+
+function googleCalCard() {
+  const gc = CFG.googleCal;
+  const gmailOk = CFG.gmail.connected;
+  if (gc.connected) {
+    return `<div class="provider-card connected">
+      <div class="pcard-head">
+        <div class="pcard-logo" style="background:#4285f4">📅</div>
+        <div><div class="pcard-name">Google Calendar</div><div class="pcard-status on">● Connected</div></div>
+      </div>
+      <div class="connected-info"><div class="ci-dot"></div><div class="ci-email">Syncing via Gmail</div></div>
+      <button class="pcard-btn disconnect" onclick="disconnect('googleCal')">Disconnect</button>
+    </div>`;
+  }
+  return `<div class="provider-card">
+    <div class="pcard-head">
+      <div class="pcard-logo" style="background:#4285f4">📅</div>
+      <div><div class="pcard-name">Google Calendar</div><div class="pcard-status off">Not connected</div></div>
+    </div>
+    ${gmailOk
+      ? `<div class="field-help" style="margin-bottom:10px">Uses your connected Gmail account — no extra setup needed.</div>
+         <button class="pcard-btn connect" onclick="connectCal('google')">Enable Google Calendar</button>`
+      : `<div style="font-size:12px;color:var(--muted);padding:4px 0 10px">
+           Connect Gmail first to enable Google Calendar.
+         </div>
+         <button class="pcard-btn connect" style="opacity:.5;cursor:not-allowed" disabled>Enable Google Calendar</button>`
+    }
+  </div>`;
+}
+
+function outlookCalCard() {
+  const oc = CFG.outlookCal;
+  const outlookOk = CFG.outlook.connected;
+  if (oc.connected) {
+    return `<div class="provider-card connected">
+      <div class="pcard-head">
+        <div class="pcard-logo" style="background:var(--outlook)">📆</div>
+        <div><div class="pcard-name">Outlook Calendar</div><div class="pcard-status on">● Connected</div></div>
+      </div>
+      <div class="connected-info"><div class="ci-dot"></div><div class="ci-email">Syncing via Outlook</div></div>
+      <button class="pcard-btn disconnect" onclick="disconnect('outlookCal')">Disconnect</button>
+    </div>`;
+  }
+  return `<div class="provider-card">
+    <div class="pcard-head">
+      <div class="pcard-logo" style="background:var(--outlook)">📆</div>
+      <div><div class="pcard-name">Outlook Calendar</div><div class="pcard-status off">Not connected</div></div>
+    </div>
+    ${outlookOk
+      ? `<div class="field-help" style="margin-bottom:10px">Uses your connected Outlook account — no extra setup needed.</div>
+         <button class="pcard-btn connect" onclick="connectCal('outlook')">Enable Outlook Calendar</button>`
+      : `<div style="font-size:12px;color:var(--muted);padding:4px 0 10px">
+           Connect Outlook first to enable Outlook Calendar.
+         </div>
+         <button class="pcard-btn connect" style="opacity:.5;cursor:not-allowed" disabled>Enable Outlook Calendar</button>`
+    }
+  </div>`;
+}
+
+// ── AI tab ────────────────────────────────────────────────────────
+function renderAITab() {
+  const ai = CFG.ai;
+  return `
+    <div>
+      <div class="settings-section-title">AI Assistant</div>
+      <div class="settings-section-desc">The assistant is optional. Connect any provider you have access to — or use Ollama for free, locally.</div>
+
+      <div class="ai-active-bar" style="margin-bottom:20px">
+        <div class="ai-active-label">Active provider</div>
+        <select id="aiActiveSelect" onchange="CFG.ai.active=this.value;saveCfg(CFG)">
+          <option value="" ${!ai.active?'selected':''}>None — AI disabled</option>
+          <option value="ollama"  ${ai.active==='ollama'?'selected':''}>Ollama (Local)</option>
+          <option value="gemini"  ${ai.active==='gemini'?'selected':''}>Google Gemini</option>
+          <option value="claude"  ${ai.active==='claude'?'selected':''}>Anthropic Claude</option>
+          <option value="openai"  ${ai.active==='openai'?'selected':''}>OpenAI</option>
+        </select>
+      </div>
+
+      <div class="provider-grid">
+
+        <!-- Ollama -->
+        <div class="provider-card ${ai.active==='ollama'?'connected':''}">
+          <div class="pcard-head">
+            <div class="pcard-logo" style="background:var(--ollama);font-size:20px">🦙</div>
+            <div style="flex:1">
+              <div class="pcard-name">Ollama</div>
+              <div class="pcard-status off">Local · runs on your machine</div>
+            </div>
+            <span class="pcard-badge badge-local">Free · Local</span>
+          </div>
+          <div class="field-group">
+            <label>Server URL</label>
+            <input type="text" placeholder="http://localhost:11434"
+                   value="${ai.ollama.url}"
+                   oninput="CFG.ai.ollama.url=this.value" />
+          </div>
+          <div class="field-group">
+            <label>Model</label>
+            ${buildOllamaModelPicker(ai)}
+            <div class="field-help" style="margin-top:5px"><a onclick="openHelp('ollama')">Browse all Ollama models →</a></div>
+          </div>
+          <button class="pcard-btn test" onclick="saveAI('ollama')">Save & Test Connection</button>
+        </div>
+
+        <!-- Gemini -->
+        <div class="provider-card ${ai.active==='gemini'?'connected':''}">
+          <div class="pcard-head">
+            <div class="pcard-logo" style="background:var(--gemini)">✦</div>
+            <div style="flex:1">
+              <div class="pcard-name">Google Gemini</div>
+              <div class="pcard-status off">Gemini 2.0 Flash and more</div>
+            </div>
+            <span class="pcard-badge badge-free">Free tier</span>
+          </div>
+          <div class="field-group">
+            <label>API Key</label>
+            <input type="password" placeholder="AIzaSy…"
+                   value="${ai.gemini.key}"
+                   oninput="CFG.ai.gemini.key=this.value" />
+            <div class="field-help"><a onclick="openHelp('gemini')">Get a free key at Google AI Studio →</a></div>
+          </div>
+          <button class="pcard-btn test" onclick="saveAI('gemini')">Save Key</button>
+        </div>
+
+        <!-- Claude -->
+        <div class="provider-card ${ai.active==='claude'?'connected':''}">
+          <div class="pcard-head">
+            <div class="pcard-logo" style="background:var(--claude)">C</div>
+            <div style="flex:1">
+              <div class="pcard-name">Anthropic Claude</div>
+              <div class="pcard-status off">Claude Haiku, Sonnet, Opus</div>
+            </div>
+            <span class="pcard-badge badge-paid">Pay-as-you-go</span>
+          </div>
+          <div class="field-group">
+            <label>API Key</label>
+            <input type="password" placeholder="sk-ant-…"
+                   value="${ai.claude.key}"
+                   oninput="CFG.ai.claude.key=this.value" />
+            <div class="field-help"><a onclick="openHelp('claude')">Get a key at console.anthropic.com →</a></div>
+          </div>
+          <button class="pcard-btn test" onclick="saveAI('claude')">Save Key</button>
+        </div>
+
+        <!-- OpenAI -->
+        <div class="provider-card ${ai.active==='openai'?'connected':''}">
+          <div class="pcard-head">
+            <div class="pcard-logo" style="background:var(--openai)">⊹</div>
+            <div style="flex:1">
+              <div class="pcard-name">OpenAI</div>
+              <div class="pcard-status off">GPT-4o, GPT-4o mini and more</div>
+            </div>
+            <span class="pcard-badge badge-paid">Pay-as-you-go</span>
+          </div>
+          <div class="field-group">
+            <label>API Key</label>
+            <input type="password" placeholder="sk-…"
+                   value="${ai.openai.key}"
+                   oninput="CFG.ai.openai.key=this.value" />
+            <div class="field-help"><a onclick="openHelp('openai')">Get a key at platform.openai.com →</a></div>
+          </div>
+          <div class="field-group">
+            <label>Model</label>
+            <select onchange="CFG.ai.openai.model=this.value">
+              <option value="gpt-4o-mini" ${ai.openai.model==='gpt-4o-mini'?'selected':''}>gpt-4o-mini (recommended)</option>
+              <option value="gpt-4o"      ${ai.openai.model==='gpt-4o'?'selected':''}>gpt-4o</option>
+            </select>
+          </div>
+          <button class="pcard-btn test" onclick="saveAI('openai')">Save Key</button>
+        </div>
+
+      </div>
+    </div>`;
+}
+
+// ── Theme helpers ─────────────────────────────────────────────────
+function buildThemeSection() {
+  const t = CFG.theme || {};
+  const p = getActiveProfile();
+  const profileColor = p ? p.color : '#6366f1';
+  const curAccent = t.accent || profileColor;
+  const curScheme = t.scheme || 'mono';
+
+  const swatches = ACCENT_COLORS.map(function(c) {
+    const isSel = c.hex === curAccent;
+    return '<div class="accent-swatch' + (isSel ? ' selected' : '') + '"' +
+      ' style="background:' + c.hex + ';color:' + c.hex + '"' +
+      ' title="' + c.name + '"' +
+      ' onclick="pickAccent(\'' + c.hex + '\',this)"></div>';
+  }).join('');
+
+  const monoStripes = [curAccent, curAccent, curAccent].map(function(c) {
+    return '<div class="scheme-stripe" style="background:' + c + '"></div>';
+  }).join('');
+  const multiStripes = ['#ef4444','#3b82f6','#8b5cf6'].map(function(c) {
+    return '<div class="scheme-stripe" style="background:' + c + '"></div>';
+  }).join('');
+  const joyStripes = ['#f97316','#22c55e','#eab308','#3b82f6'].map(function(c) {
+    return '<div class="scheme-stripe" style="background:' + c + '"></div>';
+  }).join('');
+
+  var schemes = [
+    { id:'mono',  label:'Mono',        stripes: monoStripes },
+    { id:'multi', label:'Multicolor',  stripes: multiStripes },
+    { id:'joy',   label:'Joyful',      stripes: joyStripes },
+  ];
+  const schemeCards = schemes.map(function(s) {
+    return '<div class="scheme-card' + (s.id === curScheme ? ' selected' : '') + '"' +
+      ' onclick="pickScheme(\'' + s.id + '\',this)">' +
+      '<div class="scheme-preview">' + s.stripes + '</div>' +
+      '<div class="scheme-label">' + s.label + '</div>' +
+      '</div>';
+  }).join('');
+
+  return '<div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px 18px">' +
+    '<div style="font-size:13px;font-weight:600;margin-bottom:10px">Accent Color</div>' +
+    '<div class="accent-grid">' + swatches + '</div>' +
+    '<div style="font-size:13px;font-weight:600;margin-top:18px;margin-bottom:4px">Color Scheme</div>' +
+    '<div style="font-size:12px;color:var(--muted);margin-bottom:10px">' +
+      'Mono uses your accent color everywhere. Multicolor gives each section its own color. Joyful mixes several warm tones.' +
+    '</div>' +
+    '<div class="scheme-grid">' + schemeCards + '</div>' +
+  '</div>';
+}
+
+function pickAccent(hex, el) {
+  if (!CFG.theme) CFG.theme = {};
+  CFG.theme.accent = hex;
+  saveCfg(CFG);
+  applyTheme();
+  document.querySelectorAll('.accent-swatch').forEach(function(s) {
+    s.classList.remove('selected');
+    s.style.color = s.style.background;
+  });
+  el.classList.add('selected');
+  // Refresh mono scheme card stripes to reflect new accent
+  const monoCard = document.querySelector('.scheme-card[onclick*="mono"]');
+  if (monoCard) {
+    monoCard.querySelectorAll('.scheme-stripe').forEach(function(stripe) {
+      stripe.style.background = hex;
+    });
+  }
+}
+
+function pickScheme(id, el) {
+  if (!CFG.theme) CFG.theme = {};
+  if (id === 'joy') {
+    CFG.theme.scheme = 'multi';
+    CFG.theme._joy = true;
+    saveCfg(CFG);
+    const root = document.documentElement.style;
+    root.setProperty('--email-color',  '#f97316');
+    root.setProperty('--cal-color',    '#22c55e');
+    root.setProperty('--ai-color',     '#eab308');
+    root.setProperty('--events-color', '#3b82f6');
+  } else {
+    CFG.theme.scheme = id;
+    CFG.theme._joy = false;
+    saveCfg(CFG);
+    applyTheme();
+  }
+  document.querySelectorAll('.scheme-card').forEach(function(c) { c.classList.remove('selected'); });
+  el.classList.add('selected');
+}
+
+// ── General tab ───────────────────────────────────────────────────
+function renderGeneralTab() {
+  const g = CFG.general || {};
+  return '<div>' +
+    '<div class="settings-section-title">General</div>' +
+    '<div class="settings-section-desc">App-wide preferences.</div>' +
+    '<div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:4px 16px;margin-bottom:28px">' +
+      '<div class="toggle-row">' +
+        '<div class="toggle-info"><div class="t-name">Notifications</div>' +
+        '<div class="t-desc">Allow desktop notifications for new emails and calendar reminders</div></div>' +
+        '<div class="toggle ' + (g.notifications?'on':'') + '" onclick="toggleGeneral(this,\'notifications\')"></div>' +
+      '</div>' +
+      '<div class="toggle-row">' +
+        '<div class="toggle-info"><div class="t-name">Calendar Reminders</div>' +
+        '<div class="t-desc">Show reminders 30 minutes before calendar events</div></div>' +
+        '<div class="toggle ' + (g.calendarReminders?'on':'') + '" onclick="toggleGeneral(this,\'calendarReminders\')"></div>' +
+      '</div>' +
+      '<div class="toggle-row">' +
+        '<div class="toggle-info"><div class="t-name">Auto-detect Meeting Times</div>' +
+        '<div class="t-desc">Highlight suggested meeting times in emails and offer to add them to your calendar</div></div>' +
+        '<div class="toggle ' + (g.autoDetectMeetings?'on':'') + '" onclick="toggleGeneral(this,\'autoDetectMeetings\')"></div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="settings-section-title">Appearance</div>' +
+    '<div class="settings-section-desc">Pick your accent color and how colors are applied across the app.</div>' +
+    buildThemeSection() +
+  '</div>';
+}
+
+// ── Actions ───────────────────────────────────────────────────────
+function connectOAuth(provider) {
+  if (provider === 'gmail') {
+    if (!CFG.gmail.clientId.trim()) {
+      alert('Please enter your Google OAuth Client ID first.');
+      return;
+    }
+    const redirectUri = encodeURIComponent(location.origin + '/');
+    const scope = encodeURIComponent('https://www.googleapis.com/auth/gmail.modify https://www.googleapis.com/auth/calendar');
+    const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${CFG.gmail.clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&access_type=offline&prompt=consent`;
+    window.open(url, '_blank');
+    // For now, simulate connected state with a demo note
+    setTimeout(() => {
+      CFG.gmail.connected = true;
+      CFG.gmail.email = 'your@gmail.com (authorize in popup)';
+      saveCfg(CFG);
+      renderSettings('accounts');
+    }, 1000);
+  } else if (provider === 'outlook') {
+    if (!CFG.outlook.clientId.trim()) {
+      alert('Please enter your Microsoft Application (Client) ID first.');
+      return;
+    }
+    const tenant = CFG.outlook.tenantId || 'common';
+    const redirectUri = encodeURIComponent(location.origin + '/');
+    const scope = encodeURIComponent('Mail.ReadWrite Mail.Send Calendars.ReadWrite offline_access');
+    const url = `https://login.microsoftonline.com/${tenant}/oauth2/v2.0/authorize?client_id=${CFG.outlook.clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}`;
+    window.open(url, '_blank');
+    setTimeout(() => {
+      CFG.outlook.connected = true;
+      CFG.outlook.email = 'your@outlook.com (authorize in popup)';
+      saveCfg(CFG);
+      renderSettings('accounts');
+    }, 1000);
+  }
+}
+
+function connectCal(provider) {
+  if (provider === 'google') {
+    CFG.googleCal.connected = true;
+  } else {
+    CFG.outlookCal.connected = true;
+  }
+  saveCfg(CFG);
+  renderSettings('calendar');
+}
+
+function disconnect(key) {
+  if (key === 'gmail')      { CFG.gmail      = { connected:false, email:'', clientId: CFG.gmail.clientId }; }
+  if (key === 'outlook')    { CFG.outlook    = { connected:false, email:'', clientId: CFG.outlook.clientId, tenantId: CFG.outlook.tenantId }; }
+  if (key === 'googleCal')  { CFG.googleCal  = { connected:false }; }
+  if (key === 'outlookCal') { CFG.outlookCal = { connected:false }; }
+  saveCfg(CFG);
+  if (key === 'gmail' || key === 'outlook') renderSettings('accounts');
+  else renderSettings('calendar');
+}
+
+function saveAI(provider) {
+  saveCfg(CFG);
+  const btn = event.target;
+  const orig = btn.textContent;
+  btn.textContent = '✓ Saved';
+  btn.style.color = 'var(--green)';
+  btn.style.borderColor = 'rgba(34,197,94,.3)';
+  setTimeout(() => {
+    btn.textContent = orig;
+    btn.style.color = '';
+    btn.style.borderColor = '';
+  }, 2000);
+}
+
+function toggleGeneral(el, key) {
+  el.classList.toggle('on');
+  CFG.general[key] = el.classList.contains('on');
+  saveCfg(CFG);
+}
+
+const OLLAMA_DESCS = {
+  'llama3.2:3b':  ['⚡ Lightning fast',   'Best for quick questions and everyday tasks. Starts instantly.',        '~2 GB RAM'],
+  'llama3.1:8b':  ['⭐ Best all-around',  'The sweet spot — fast enough and smart enough for most people.',        '~5 GB RAM'],
+  'mistral:7b':   ['✍ Great for writing', 'Excellent at drafting emails, summaries, and structured replies.',      '~4 GB RAM'],
+  'gemma3:12b':   ['🧠 Smarter',          'Stronger reasoning. Better for complex questions and analysis.',        '~8 GB RAM'],
+  'llama3.1:70b': ['💪 Most powerful',    'Highest quality, but needs a powerful PC. Not for most users.',        '~40 GB RAM'],
+  'custom':       ['Custom model',        'Enter any model name from your Ollama library.',                       ''],
+};
+
+function buildOllamaModelPicker(ai) {
+  const cur = (ai && ai.ollama && ai.ollama.model) ? ai.ollama.model : 'llama3.1:8b';
+  const isCustom = !OLLAMA_DESCS[cur] || cur === 'custom';
+  const desc = OLLAMA_DESCS[isCustom ? 'custom' : cur];
+  const options = Object.keys(OLLAMA_DESCS).map(function(k) {
+    const label = k === 'custom' ? 'Custom model…' : (k + ' — ' + OLLAMA_DESCS[k][0]);
+    const sel = (!isCustom && cur === k) || (isCustom && k === 'custom') ? ' selected' : '';
+    return '<option value="' + k + '"' + sel + '>' + label + '</option>';
+  }).join('');
+  const infoHtml = '<span style="color:var(--text);font-weight:600">' + desc[0] + '</span> &nbsp;·&nbsp; ' + desc[1] +
+    (desc[2] ? ' &nbsp;·&nbsp; <span style="color:var(--dim)">' + desc[2] + '</span>' : '');
+  const customStyle = isCustom ? 'display:block' : 'display:none';
+  const customVal = isCustom ? (cur === 'custom' ? '' : cur) : '';
+  return '<select class="field-input" onchange="ollamaModelChange(this.value)">' + options + '</select>' +
+    '<div id="ollamaModelInfo" class="field-help" style="margin-top:4px">' + infoHtml + '</div>' +
+    '<input id="ollamaCustomInput" class="field-input" style="margin-top:6px;' + customStyle + '" placeholder="e.g. phi3:mini" value="' + customVal + '" oninput="CFG.ai.ollama.model=this.value">';
+}
+
+function ollamaModelChange(val) {
+  const d = OLLAMA_DESCS[val] || OLLAMA_DESCS['custom'];
+  const info = document.getElementById('ollamaModelInfo');
+  const custom = document.getElementById('ollamaCustomInput');
+  if (info) info.innerHTML = `<span style="color:var(--text);font-weight:600">${d[0]}</span> &nbsp;·&nbsp; ${d[1]}${d[2] ? ` &nbsp;·&nbsp; <span style="color:var(--dim)">${d[2]}</span>` : ''}`;
+  if (custom) custom.style.display = val === 'custom' ? 'block' : 'none';
+  if (val !== 'custom') {
+    CFG.ai.ollama.model = val;
+    saveCfg(CFG);
+  }
+}
+
+// ── Profile Setup Screen ──────────────────────────────────────────
+let setupColor = PROFILE_COLORS[0];
+let setupIsAdding = false;
+
+function showProfileSetup(addingNew = false) {
+  setupIsAdding = addingNew;
+  setupColor = PROFILE_COLORS[0];
+  const swatches = PROFILE_COLORS.map((c, i) =>
+    `<div class="color-swatch ${i===0?'selected':''}" style="background:${c}"
+          onclick="pickColor(this,'${c}')"></div>`
+  ).join('');
+
+  const el = document.createElement('div');
+  el.className = 'profile-setup';
+  el.id = 'profileSetup';
+  el.innerHTML = `
+    <div class="setup-card">
+      <div class="setup-logo">M</div>
+      <div class="setup-title">${addingNew ? 'Add a Profile' : 'Welcome to MailCal'}</div>
+      <div class="setup-sub">${addingNew ? 'Create a new profile for another user on this device.' : 'Create your profile to get started.'}</div>
+      <div class="setup-avatar-preview" id="setupAvatarPrev" style="background:${setupColor}">?</div>
+      <input class="setup-input" id="setupNameInput" type="text" placeholder="Your name"
+             maxlength="30" oninput="updateSetupPreview(this.value)" autofocus />
+      <div class="color-picker" id="setupColors">${swatches}</div>
+      <button class="setup-btn" onclick="createProfile()">
+        ${addingNew ? 'Add Profile' : 'Get Started'} →
+      </button>
+    </div>`;
+  document.body.appendChild(el);
+  setTimeout(() => document.getElementById('setupNameInput').focus(), 50);
+}
+
+function updateSetupPreview(name) {
+  const prev = document.getElementById('setupAvatarPrev');
+  if (prev) prev.textContent = name.trim() ? initials(name) : '?';
+}
+
+function pickColor(el, color) {
+  setupColor = color;
+  document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+  el.classList.add('selected');
+  const prev = document.getElementById('setupAvatarPrev');
+  if (prev) prev.style.background = color;
+}
+
+function createProfile() {
+  const nameEl = document.getElementById('setupNameInput');
+  const name = nameEl ? nameEl.value.trim() : '';
+  if (!name) { nameEl && (nameEl.style.borderColor = 'var(--red)'); return; }
+
+  const s = getPStore();
+  const id = 'p_' + Date.now();
+  s.profiles[id] = { id, name, color: setupColor, config: structuredClone(DEFAULTS), createdAt: Date.now() };
+  s.active = id;
+  savePStore(s);
+
+  const overlay = document.getElementById('profileSetup');
+  if (overlay) overlay.remove();
+
+  CFG = loadCfg();
+  updateAvatarUI();
+  goSettings();
+}
+
+// ── Avatar Menu ───────────────────────────────────────────────────
+function toggleAvatarMenu() {
+  const m = document.getElementById('avatarMenu');
+  m.classList.toggle('open');
+  if (m.classList.contains('open')) {
+    setTimeout(() => document.addEventListener('click', outsideMenuClose, { once: true }), 10);
+  }
+}
+function closeAvatarMenu() { document.getElementById('avatarMenu').classList.remove('open'); }
+function outsideMenuClose(e) {
+  if (!document.querySelector('.avatar-wrap').contains(e.target)) closeAvatarMenu();
+}
+
+// ── Profile Switcher Modal ────────────────────────────────────────
+function showProfileSwitcher() {
+  const s = getPStore();
+  const rows = Object.values(s.profiles).map(p => `
+    <div class="profile-row ${p.id===s.active?'current':''}" onclick="switchProfile('${p.id}')">
+      <div class="pr-av" style="background:${p.color}">${initials(p.name)}</div>
+      <div>
+        <div class="pr-name">${p.name}</div>
+        <div class="pr-sub">Connected: ${countConnections(p.config)} service${countConnections(p.config)!==1?'s':''}</div>
+      </div>
+      ${p.id===s.active?'<div class="pr-active">Active</div>':''}
+    </div>`).join('');
+
+  const el = document.createElement('div');
+  el.className = 'modal-overlay';
+  el.id = 'profileModal';
+  el.innerHTML = `
+    <div class="modal">
+      <div class="modal-title">Profiles on this device</div>
+      <div class="profile-list">${rows}</div>
+      <button class="modal-add" onclick="closeModal();showProfileSetup(true)">＋ Add Profile</button>
+      <button class="modal-close" onclick="closeModal()">Close</button>
+    </div>`;
+  document.body.appendChild(el);
+  el.addEventListener('click', e => { if (e.target === el) closeModal(); });
+}
+
+function countConnections(cfg) {
+  if (!cfg) return 0;
+  return [cfg.gmail?.connected, cfg.outlook?.connected, cfg.googleCal?.connected, cfg.outlookCal?.connected].filter(Boolean).length;
+}
+
+function switchProfile(id) {
+  const s = getPStore();
+  if (!s.profiles[id]) return;
+  s.active = id;
+  savePStore(s);
+  CFG = loadCfg();
+  closeModal();
+  applyTheme();
+  updateAvatarUI();
+  goHome();
+}
+
+function deleteCurrentProfile() {
+  const s = getPStore();
+  const count = Object.keys(s.profiles).length;
+  if (count <= 1) { alert("You can't remove your only profile."); return; }
+  const p = s.profiles[s.active];
+  if (!confirm(`Remove profile "${p.name}"? This will delete all their connected accounts and settings.`)) return;
+  delete s.profiles[s.active];
+  s.active = Object.keys(s.profiles)[0];
+  savePStore(s);
+  CFG = loadCfg();
+  applyTheme();
+  updateAvatarUI();
+  goHome();
+}
+
+function closeModal() {
+  const m = document.getElementById('profileModal');
+  if (m) m.remove();
+}
+
+function openHelp(provider) {
+  const urls = {
+    gmail:   'https://console.cloud.google.com/apis/credentials',
+    outlook: 'https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps',
+    ollama:  'https://ollama.com/library',
+    gemini:  'https://aistudio.google.com/app/apikey',
+    claude:  'https://console.anthropic.com/',
+    openai:  'https://platform.openai.com/api-keys',
+  };
+  if (urls[provider]) window.open(urls[provider], '_blank');
+}
+
+// ── Landing Page ──────────────────────────────────────────────────
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  const btn = document.getElementById('landingInstallBtn');
+  if (btn) { btn.style.opacity = '1'; btn.style.pointerEvents = 'auto'; }
+});
+
+function renderLanding() {
+  document.querySelectorAll('.landing-screen').forEach(e => e.remove());
+  const el = document.createElement('div');
+  el.className = 'landing-screen';
+  el.id = 'landingScreen';
+  el.innerHTML = `
+    <div class="landing-wrap">
+      <nav class="landing-nav">
+        <div class="landing-nav-logo"><div class="auth-logo" style="width:28px;height:28px;font-size:13px;border-radius:7px">M</div> MailCal</div>
+        <button class="landing-signin-link" onclick="removeLanding();renderAuthScreen()">Sign In</button>
+      </nav>
+
+      <section class="landing-hero">
+        <div class="landing-badge">✦ Email + Calendar + AI</div>
+        <h1 class="landing-headline">Welcome to<br><span class="landing-gradient">MailCal</span></h1>
+        <p class="landing-sub">Your all-in-one email and calendar manager with a built-in AI assistant. Stay on top of your inbox, your schedule, and never miss a meeting again.</p>
+
+        <div class="landing-btns">
+          <button class="landing-install-btn" id="landingInstallBtn" onclick="triggerInstall()">
+            <span style="font-size:18px">⬇</span> Install MailCal
+          </button>
+          <button class="landing-ghost-btn" onclick="removeLanding();renderAuthScreen()">
+            Already have an account →
+          </button>
+        </div>
+        <div class="landing-install-note" id="installNote">Install the app to get started — works on Windows, Mac &amp; mobile.</div>
+      </section>
+
+      <section class="landing-features">
+        <div class="landing-feature-card">
+          <div class="lf-icon" style="background:rgba(99,102,241,.15);color:#818cf8">📧</div>
+          <div class="lf-title">Smart Email</div>
+          <div class="lf-desc">Connect Gmail and Outlook. Read, reply, and draft emails all in one place.</div>
+        </div>
+        <div class="landing-feature-card">
+          <div class="lf-icon" style="background:rgba(34,197,94,.1);color:#4ade80">📅</div>
+          <div class="lf-title">Calendar Sync</div>
+          <div class="lf-desc">Sync Google and Outlook calendars. Meeting times in emails get added with one click.</div>
+        </div>
+        <div class="landing-feature-card">
+          <div class="lf-icon" style="background:rgba(249,115,22,.1);color:#fb923c">✦</div>
+          <div class="lf-title">AI Assistant</div>
+          <div class="lf-desc">Ask questions about your inbox, get summaries, draft replies — powered by your choice of AI.</div>
+        </div>
+        <div class="landing-feature-card">
+          <div class="lf-icon" style="background:rgba(6,182,212,.1);color:#22d3ee">🔒</div>
+          <div class="lf-title">Private &amp; Secure</div>
+          <div class="lf-desc">Your API keys stay on your device. Accounts are manually approved — no open sign-ups.</div>
+        </div>
+      </section>
+
+      <footer class="landing-footer">
+        MailCal &nbsp;·&nbsp; Built for productivity
+      </footer>
+    </div>`;
+  document.body.appendChild(el);
+}
+
+function removeLanding() {
+  document.querySelectorAll('.landing-screen').forEach(e => e.remove());
+}
+
+async function triggerInstall() {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    deferredPrompt = null;
+    if (outcome === 'accepted') {
+      document.getElementById('installNote').textContent = '✓ Installing… open MailCal from your Start Menu or desktop.';
+    }
+  } else {
+    // Already installed or browser doesn't support prompt
+    document.getElementById('installNote').textContent = 'Already installed? Open MailCal from your Start Menu or desktop.';
+    setTimeout(() => removeLanding(), 100);
+    renderAuthScreen();
+  }
+}
+
+// ── Auth UI ───────────────────────────────────────────────────────
+let authTab = 'signup';
+
+function renderAuthScreen() {
+  document.querySelectorAll('.auth-screen,.status-screen,.profile-setup,.landing-screen').forEach(e => e.remove());
+  const el = document.createElement('div');
+  el.className = 'auth-screen';
+  el.id = 'authScreen';
+  el.innerHTML = `
+    <div class="auth-card">
+      <div class="auth-logo">M</div>
+      <div class="auth-title">MailCal</div>
+      <div class="auth-sub">Email &amp; Calendar Manager</div>
+      <div class="auth-tabs">
+        <div class="auth-tab ${authTab==='signup'?'active':''}" onclick="setAuthTab('signup')">Create Account</div>
+        <div class="auth-tab ${authTab==='signin'?'active':''}" onclick="setAuthTab('signin')">Sign In</div>
+      </div>
+      <div class="auth-form" id="authForm">
+        ${authTab === 'signup' ? `
+          <input class="auth-input" id="aName"    type="text"     placeholder="Your full name" />
+          <input class="auth-input" id="aEmail"   type="email"    placeholder="Email address" />
+          <input class="auth-input" id="aPass"    type="password" placeholder="Password" />
+          <input class="auth-input" id="aPass2"   type="password" placeholder="Confirm password"
+                 onkeydown="if(event.key==='Enter')handleAuth()" />
+        ` : `
+          <input class="auth-input" id="aEmail"   type="email"    placeholder="Email address" />
+          <input class="auth-input" id="aPass"    type="password" placeholder="Password"
+                 onkeydown="if(event.key==='Enter')handleAuth()" />
+          <div style="text-align:right;margin-top:-4px">
+            <span style="font-size:12px;color:var(--accent);cursor:pointer" onclick="showForgotPassword()">Forgot password?</span>
+          </div>
+        `}
+        <button class="auth-btn" id="authBtn" onclick="handleAuth()">
+          ${authTab === 'signup' ? 'Create Account' : 'Sign In'}
+        </button>
+      </div>
+      <div class="auth-error" id="authErr"></div>
+      <div class="auth-note">
+        ${authTab === 'signup'
+          ? 'Already have an account? <span style="color:var(--accent);cursor:pointer" onclick="setAuthTab(\'signin\')">Sign in</span>'
+          : 'New to MailCal? <span style="color:var(--accent);cursor:pointer" onclick="setAuthTab(\'signup\')">Create an account</span>'}
+      </div>
+    </div>`;
+  document.body.appendChild(el);
+  setTimeout(() => {
+    const f = el.querySelector(authTab === 'signup' ? '#aName' : '#aEmail');
+    if (f) f.focus();
+  }, 50);
+}
+
+function setAuthTab(tab) { authTab = tab; renderAuthScreen(); }
+
+async function handleAuth() {
+  const btn   = document.getElementById('authBtn');
+  const errEl = document.getElementById('authErr');
+  const email = document.getElementById('aEmail')?.value.trim();
+  const pass  = document.getElementById('aPass')?.value;
+  const pass2 = document.getElementById('aPass2')?.value;
+  const name  = document.getElementById('aName')?.value.trim();
+
+  errEl.textContent = '';
+  if (!email || !pass) { errEl.textContent = 'Please fill in all fields.'; return; }
+  if (authTab === 'signup') {
+    if (!name)          { errEl.textContent = 'Please enter your name.'; return; }
+    if (pass.length < 6){ errEl.textContent = 'Password must be at least 6 characters.'; return; }
+    if (pass !== pass2) { errEl.textContent = 'Passwords do not match.'; return; }
+  }
+
+  btn.disabled = true;
+  btn.textContent = authTab === 'signin' ? 'Signing in…' : 'Creating account…';
+
+  try {
+    if (authTab === 'signup') {
+      await sbSignUp(name, email, pass);
+      showPendingScreen(email);
+    } else {
+      await sbSignIn(email, pass);
+      await launchApp();
+    }
+  } catch (e) {
+    btn.disabled = false;
+    btn.textContent = authTab === 'signin' ? 'Sign In' : 'Create Account';
+    errEl.textContent = e.message || 'Something went wrong. Please try again.';
+  }
+}
+
+// ── Forgot Password ───────────────────────────────────────────────
+function showForgotPassword() {
+  document.querySelectorAll('.auth-screen').forEach(e => e.remove());
+  const el = document.createElement('div');
+  el.className = 'auth-screen';
+  el.innerHTML = `
+    <div class="auth-card">
+      <div class="auth-logo">M</div>
+      <div class="auth-title">Reset Password</div>
+      <div class="auth-sub" style="margin-bottom:18px">Enter your email and we'll send you a reset link.</div>
+      <div class="auth-form">
+        <input class="auth-input" id="resetEmail" type="email" placeholder="Email address"
+               onkeydown="if(event.key==='Enter')sendReset()" />
+        <button class="auth-btn" id="resetBtn" onclick="sendReset()">Send Reset Link</button>
+      </div>
+      <div class="auth-error" id="resetErr"></div>
+      <div class="auth-note" style="margin-top:12px">
+        <span style="color:var(--accent);cursor:pointer" onclick="setAuthTab('signin');renderAuthScreen()">← Back to Sign In</span>
+      </div>
+    </div>`;
+  document.body.appendChild(el);
+  setTimeout(() => document.getElementById('resetEmail')?.focus(), 50);
+}
+
+async function sendReset() {
+  const email = document.getElementById('resetEmail')?.value.trim();
+  const errEl = document.getElementById('resetErr');
+  const btn   = document.getElementById('resetBtn');
+  if (!email) { errEl.textContent = 'Please enter your email.'; return; }
+  btn.disabled = true; btn.textContent = 'Sending…';
+  try {
+    const { error } = await getSB().auth.resetPasswordForEmail(email, { redirectTo: location.origin + '/' });
+    if (error) throw error;
+    btn.textContent = '✓ Email sent!';
+    btn.style.background = 'var(--green)';
+    errEl.style.color = 'var(--green)';
+    errEl.textContent = 'Check your inbox for the reset link.';
+  } catch(e) {
+    btn.disabled = false; btn.textContent = 'Send Reset Link';
+    errEl.textContent = e.message || 'Could not send reset email.';
+  }
+}
+
+// ── Pending Screen (with live Realtime watch) ─────────────────────
+let _realtimeCh = null;
+let _pollTimer  = null;
+
+function startApprovalWatch(userId) {
+  stopApprovalWatch();
+  const sb = getSB();
+  if (!sb) return;
+
+  _realtimeCh = sb.channel('approval:' + userId)
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'accounts', filter: `id=eq.${userId}` },
+      (payload) => {
+        if (payload.new.status === 'approved') { stopApprovalWatch(); launchApp(); }
+        else if (payload.new.status === 'denied' || payload.new.status === 'revoked') {
+          stopApprovalWatch();
+          showDeniedScreen(AUTH_SESSION?.user?.email || '');
+        }
+      })
+    .subscribe();
+
+  // Polling fallback every 12 seconds
+  _pollTimer = setInterval(async () => {
+    const s = await getAuthStatus();
+    if (s === 'approved') { stopApprovalWatch(); launchApp(); }
+    else if (s === 'denied') { stopApprovalWatch(); showDeniedScreen(AUTH_SESSION?.user?.email || ''); }
+  }, 12000);
+}
+
+function stopApprovalWatch() {
+  if (_realtimeCh) { getSB()?.removeChannel(_realtimeCh); _realtimeCh = null; }
+  if (_pollTimer)  { clearInterval(_pollTimer); _pollTimer = null; }
+}
+
+function showPendingScreen(email) {
+  document.querySelectorAll('.auth-screen,.status-screen').forEach(e => e.remove());
+  const el = document.createElement('div');
+  el.className = 'status-screen';
+  el.innerHTML = `
+    <div class="status-card">
+      <span class="status-icon">⏳</span>
+      <div class="status-title">Account Created!</div>
+      <div class="status-desc">
+        Your account is waiting for administrator approval.<br>
+        This page will <strong style="color:var(--text)">automatically update</strong> the moment you're approved — no need to refresh.
+      </div>
+      <div class="status-email">${email}</div>
+      <div style="font-size:12px;color:var(--dim);margin-bottom:16px">Checking for approval automatically…</div>
+      <button class="status-btn ghost" onclick="sbSignOut()">Sign Out</button>
+    </div>`;
+  document.body.appendChild(el);
+  if (AUTH_SESSION?.user?.id) startApprovalWatch(AUTH_SESSION.user.id);
+}
+
+function showDeniedScreen(email) {
+  document.querySelectorAll('.auth-screen,.status-screen').forEach(e => e.remove());
+  const el = document.createElement('div');
+  el.className = 'status-screen';
+  el.innerHTML = `
+    <div class="status-card">
+      <span class="status-icon">🚫</span>
+      <div class="status-title">Access Not Granted</div>
+      <div class="status-desc">Your account was not approved. If you believe this is a mistake, please contact support.</div>
+      <div class="status-email">${email}</div>
+      <button class="status-btn ghost" onclick="sbSignOut()">Sign Out</button>
+    </div>`;
+  document.body.appendChild(el);
+}
+
+async function launchApp() {
+  stopApprovalWatch();
+  document.querySelectorAll('.auth-screen,.status-screen,.profile-setup,.landing-screen').forEach(e => e.remove());
+  const ps = getPStore();
+  if (!ps.active || !ps.profiles[ps.active]) {
+    showProfileSetup(false);
+  } else {
+    CFG = loadCfg();
+    // Use profile color as accent if no theme accent set yet
+    if (!CFG.theme) CFG.theme = { accent: '', scheme: 'mono' };
+    if (!CFG.theme.accent) {
+      const p = getActiveProfile();
+      if (p) { CFG.theme.accent = p.color; saveCfg(CFG); }
+    }
+    applyTheme();
+    updateAvatarUI();
+    goHome();
+  }
+}
+
+// ── Init ──────────────────────────────────────────────────────────
+(async () => {
+  try {
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+
+    // Handle password reset redirect
+    const hash = new URLSearchParams(window.location.hash.slice(1));
+    if (hash.get('type') === 'recovery') {
+      renderAuthScreen();
+      return;
+    }
+
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+                      || navigator.standalone === true;
+
+    if (!supabaseConfigured()) {
+      // Supabase keys not set — local-only mode
+      const ps = getPStore();
+      if (!ps.active || !ps.profiles[ps.active]) showProfileSetup(false);
+      else { CFG = loadCfg(); applyTheme(); updateAvatarUI(); goHome(); }
+      return;
+    }
+
+    let status;
+    try {
+      status = await getAuthStatus();
+    } catch (e) {
+      // Supabase unreachable — show landing/auth so user isn't stuck
+      console.warn('Supabase auth check failed:', e);
+      status = 'no_session';
+    }
+
+    if (status === 'no_session') {
+      if (isStandalone) renderAuthScreen();
+      else renderLanding();
+    } else if (status === 'approved') {
+      launchApp();
+    } else if (status === 'denied' || status === 'revoked') {
+      showDeniedScreen(AUTH_SESSION?.user?.email || '');
+    } else {
+      showPendingScreen(AUTH_SESSION?.user?.email || '');
+    }
+
+  } catch (e) {
+    // Last-resort fallback — always show something
+    console.error('Init error:', e);
+    renderLanding();
+  }
+})()
+
+</script>
+</body>
+</html>
