@@ -1,5 +1,5 @@
-const CACHE = 'mailcal-v10';
-const ASSETS = ['/', '/index.html', '/manifest.json'];
+const CACHE = 'mailcal-v11';
+const ASSETS = ['./', './index.html', './manifest.json'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(

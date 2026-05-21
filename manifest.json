@@ -2,7 +2,7 @@
   "name": "MailCal - Email & Calendar Manager",
   "short_name": "MailCal",
   "description": "Email and Calendar Manager",
-  "start_url": "/",
+  "start_url": "./",
   "display": "standalone",
   "background_color": "#0a0a0a",
   "theme_color": "#0a0a0a",
