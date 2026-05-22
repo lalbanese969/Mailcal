@@ -1172,7 +1172,14 @@ const MICROSOFT_CLIENT_ID = 'afdb03a3-43b1-4e43-9662-3d0f0cc72406';
 let _sb = null;
 function getSB() {
   if (!_sb && SUPABASE_URL !== 'YOUR_SUPABASE_URL') {
-    _sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+    _sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
+      auth: {
+        persistSession:   true,
+        autoRefreshToken: true,
+        detectSessionInUrl: false,
+        storage: window.localStorage,
+      }
+    });
   }
   return _sb;
 }
@@ -1834,11 +1841,24 @@ async function callAI(userText, _skipCtx) {
 async function _callOllama(messages) {
   const base  = (CFG.ai.ollama.url || 'http://localhost:11434').replace(/\/$/, '');
   const model = CFG.ai.ollama.model || 'llama3.1:8b';
-  const res = await fetch(base + '/api/chat', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model, messages, stream: false }),
-  });
+  let res;
+  try {
+    res = await fetch(base + '/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model, messages, stream: false }),
+    });
+  } catch (e) {
+    if (e.message && e.message.toLowerCase().includes('fetch')) {
+      throw new Error(
+        'Cannot reach Ollama. Two things to check:\n' +
+        '1. Make sure Ollama is running (open the Ollama app or run "ollama serve").\n' +
+        '2. If you\'re using the web version, Ollama needs CORS enabled. ' +
+        'Set the environment variable OLLAMA_ORIGINS=* then restart Ollama.'
+      );
+    }
+    throw e;
+  }
   if (!res.ok) throw new Error('Ollama error ' + res.status + '. Make sure Ollama is running.');
   const d = await res.json();
   return d.message.content;
@@ -2977,6 +2997,10 @@ function renderAITab() {
             <input type="text" placeholder="http://localhost:11434"
                    value="${ai.ollama.url}"
                    oninput="CFG.ai.ollama.url=this.value" />
+            <div class="field-help" style="margin-top:5px;color:var(--muted)">
+              Using the web version? Ollama needs CORS enabled.<br>
+              Set the environment variable <code style="background:var(--card);padding:1px 5px;border-radius:4px;font-size:11px">OLLAMA_ORIGINS=*</code> then restart Ollama.
+            </div>
           </div>
           <div class="field-group">
             <label>Model</label>
@@ -3917,9 +3941,12 @@ async function launchApp() {
     }
     applyTheme();
     updateAvatarUI();
-    // Pre-warm token in background so count appears without waiting on first render
+    // Pre-warm tokens in background so counts appear without waiting on first render
     if (CFG.gmail.connected && GOOGLE_CLIENT_ID) {
       setTimeout(() => { _initGoogleTokenClient(); getGoogleToken().catch(() => {}); }, 0);
+    }
+    if (CFG.outlook.connected && MICROSOFT_CLIENT_ID) {
+      setTimeout(() => getMicrosoftToken().catch(() => {}), 50);
     }
     goHome();
     document.body.classList.add('ready');
