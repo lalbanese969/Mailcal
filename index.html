@@ -33,7 +33,6 @@
       --claude:     #d97706;
       --openai:     #10a37f;
       --ollama:     #7c3aed;
-      /* per-section colors — overridden in multicolor mode */
       --email-color: #6366f1;
       --cal-color:   #6366f1;
       --ai-color:    #6366f1;
@@ -44,7 +43,9 @@
       background: var(--bg); color: var(--text);
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       height: 100vh; overflow: hidden; font-size: 14px; line-height: 1.4;
+      opacity: 0; transition: opacity .18s ease;
     }
+    body.ready { opacity: 1; }
 
     /* ── Shell ───────────────────────────────────────────── */
     .app { display: grid; grid-template-rows: 52px 1fr; height: 100vh; }
@@ -131,6 +132,10 @@
     }
     .badge.r { background: var(--red); }
     .sidebar-sep { height: 1px; background: var(--border-s); margin: 8px 0; }
+    .sidebar-brand {
+      font-size: 16px; font-weight: 800; letter-spacing: -.4px;
+      color: var(--accent); padding: 4px 10px 14px; flex-shrink: 0;
+    }
 
     /* ── Home / Overview ─────────────────────────────────── */
     .home-view {
@@ -208,6 +213,7 @@
 
     /* ── Theme / Color picker (in settings) ──────────────── */
     .accent-grid { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 10px; }
+    .accent-grid { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 10px; }
     .accent-swatch {
       width: 30px; height: 30px; border-radius: 50%;
       cursor: pointer; position: relative; flex-shrink: 0;
@@ -220,22 +226,7 @@
       display: flex; align-items: center; justify-content: center;
       font-size: 14px; font-weight: 800; color: #fff;
     }
-    .scheme-grid { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
-    .scheme-card {
-      border: 2px solid var(--border); border-radius: 10px;
-      padding: 10px 12px; cursor: pointer; transition: all .15s;
-      display: flex; flex-direction: column; align-items: center; gap: 7px;
-      min-width: 110px;
-    }
-    .scheme-card:hover { border-color: #333; }
-    .scheme-card.selected { border-color: var(--accent); background: var(--accent-d); }
-    .scheme-preview {
-      width: 48px; height: 20px; border-radius: 5px;
-      display: flex; overflow: hidden; gap: 1px;
-    }
-    .scheme-stripe { flex: 1; }
-    .scheme-label { font-size: 11px; font-weight: 600; text-align: center; color: var(--muted); }
-    .scheme-card.selected .scheme-label { color: var(--accent); }
+
 
     /* ── Content area (swapped by views) ────────────────── */
     #content { overflow: hidden; display: flex; }
@@ -531,6 +522,260 @@
     .save-msg.show { display: block; }
 
     * { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+
+    /* ── Home layout (main + right panel) ───────────────── */
+    .home-view {
+      display: grid; grid-template-columns: 1fr 290px;
+      width: 100%; overflow: hidden;
+    }
+    .home-main {
+      overflow-y: auto; padding: 28px 28px 28px 32px;
+      display: flex; flex-direction: column; gap: 20px;
+    }
+    .home-main::-webkit-scrollbar { width: 4px; }
+    .home-main::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    .home-right {
+      border-left: 1px solid var(--border);
+      display: flex; flex-direction: column; overflow: hidden;
+      background: var(--panel);
+    }
+
+    /* ── Actions panel ───────────────────────────────────── */
+    .actions-head {
+      padding: 14px 16px 10px;
+      display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 1px solid var(--border-s);
+    }
+    .actions-title {
+      font-size: 11px; font-weight: 700; letter-spacing: .1em;
+      text-transform: uppercase; color: var(--dim);
+    }
+    .actions-count {
+      font-size: 10px; font-weight: 700; padding: 2px 7px;
+      background: var(--accent); color: #fff; border-radius: 10px;
+    }
+    .actions-list {
+      flex: 1; overflow-y: auto; padding: 10px;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .actions-list::-webkit-scrollbar { width: 3px; }
+    .actions-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    .action-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 10px; padding: 11px 12px;
+      transition: border-color .15s;
+    }
+    .action-card:hover { border-color: #333; }
+    .action-card.urgent { border-left: 3px solid var(--red); }
+    .action-card.meeting { border-left: 3px solid var(--cal-color); }
+    .action-card.ai { border-left: 3px solid var(--ai-color); }
+    .ac-type {
+      font-size: 10px; font-weight: 700; letter-spacing: .08em;
+      text-transform: uppercase; margin-bottom: 4px;
+    }
+    .ac-type.meeting { color: var(--cal-color); }
+    .ac-type.urgent  { color: var(--red); }
+    .ac-type.ai      { color: var(--ai-color); }
+    .ac-type.info    { color: var(--muted); }
+    .ac-text { font-size: 12px; line-height: 1.55; color: var(--text); margin-bottom: 8px; }
+    .ac-btns { display: flex; gap: 6px; }
+    .ac-btn {
+      flex: 1; padding: 5px 8px; border-radius: 6px;
+      font-size: 11px; font-weight: 600; cursor: pointer;
+      transition: all .15s; font-family: inherit; border: none;
+    }
+    .ac-btn.yes { background: var(--accent); color: #fff; }
+    .ac-btn.yes:hover { opacity: .85; }
+    .ac-btn.no {
+      background: transparent; border: 1px solid var(--border);
+      color: var(--muted);
+    }
+    .ac-btn.no:hover { border-color: var(--red); color: var(--red); }
+    .ac-btn.full {
+      background: var(--accent-d); border: 1px solid var(--accent-b);
+      color: var(--accent);
+    }
+    .ac-btn.full:hover { background: rgba(99,102,241,.2); }
+    .actions-empty {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 8px; padding: 20px; text-align: center;
+    }
+    .actions-empty-icon { font-size: 28px; opacity: .25; }
+    .actions-empty-txt { font-size: 11px; color: var(--dim); line-height: 1.6; }
+
+    /* ── AI panel (bottom of right column) ──────────────── */
+    .ai-mini {
+      border-top: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      max-height: 240px;
+    }
+    .ai-mini-head {
+      padding: 10px 14px; display: flex; align-items: center; gap: 8px;
+      border-bottom: 1px solid var(--border-s); flex-shrink: 0;
+    }
+    .ai-mini-icon {
+      width: 22px; height: 22px; border-radius: 6px;
+      background: linear-gradient(135deg, var(--ai-color), var(--accent));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; flex-shrink: 0;
+    }
+    .ai-mini-title { font-size: 12px; font-weight: 600; flex: 1; }
+    .ai-mini-status { font-size: 10px; color: var(--muted); }
+    .ai-mini-msgs {
+      flex: 1; overflow-y: auto; padding: 8px 10px;
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    .ai-mini-input {
+      padding: 8px 10px; display: flex; gap: 6px;
+      border-top: 1px solid var(--border-s); flex-shrink: 0;
+    }
+    .ai-mini-input input {
+      flex: 1; background: var(--card); border: 1px solid var(--border);
+      border-radius: 6px; padding: 6px 9px; color: var(--text);
+      font-size: 12px; outline: none; font-family: inherit;
+      transition: border-color .2s;
+    }
+    .ai-mini-input input:focus { border-color: var(--accent); }
+    .ai-mini-input input::placeholder { color: var(--dim); }
+    .ai-mini-send {
+      width: 28px; height: 28px; background: var(--ai-color);
+      border: none; border-radius: 6px; color: #fff;
+      font-size: 13px; cursor: pointer; display: flex;
+      align-items: center; justify-content: center;
+      transition: opacity .2s; flex-shrink: 0;
+    }
+    .ai-mini-send:hover { opacity: .85; }
+
+    /* ── Tasks page ──────────────────────────────────────── */
+    .tasks-view {
+      display: flex; flex-direction: column;
+      width: 100%; overflow: hidden; padding: 28px 32px;
+    }
+    .tasks-view::-webkit-scrollbar { width: 4px; }
+    .page-title { font-size: 22px; font-weight: 800; letter-spacing: -.4px; margin-bottom: 4px; }
+    .page-sub   { font-size: 13px; color: var(--muted); margin-bottom: 22px; }
+    .task-input-row {
+      display: flex; gap: 8px; margin-bottom: 20px;
+    }
+    .task-input {
+      flex: 1; background: var(--card); border: 1px solid var(--border);
+      border-radius: 9px; padding: 10px 14px; color: var(--text);
+      font-size: 13px; outline: none; font-family: inherit;
+      transition: border-color .2s;
+    }
+    .task-input:focus { border-color: var(--accent); }
+    .task-input::placeholder { color: var(--dim); }
+    .task-add-btn {
+      padding: 10px 18px; background: var(--accent); border: none;
+      border-radius: 9px; color: #fff; font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: opacity .2s; font-family: inherit;
+      white-space: nowrap;
+    }
+    .task-add-btn:hover { opacity: .85; }
+    .task-sections { display: flex; flex-direction: column; gap: 22px; overflow-y: auto; flex: 1; }
+    .task-section-lbl {
+      font-size: 10px; font-weight: 700; letter-spacing: .12em;
+      text-transform: uppercase; color: var(--dim); margin-bottom: 8px;
+    }
+    .task-list { display: flex; flex-direction: column; gap: 4px; }
+    .task-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 14px; background: var(--card);
+      border: 1px solid var(--border); border-radius: 9px;
+      transition: border-color .15s; group: true;
+    }
+    .task-item:hover { border-color: #2a2a2a; }
+    .task-check {
+      width: 18px; height: 18px; border-radius: 50%;
+      border: 2px solid var(--border); cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; transition: all .15s; font-size: 10px; color: transparent;
+    }
+    .task-check:hover { border-color: var(--accent); color: var(--accent); }
+    .task-item.done .task-check {
+      background: var(--accent); border-color: var(--accent); color: #fff;
+    }
+    .task-text {
+      flex: 1; font-size: 13px; line-height: 1.4;
+    }
+    .task-item.done .task-text { text-decoration: line-through; color: var(--dim); }
+    .task-del {
+      width: 24px; height: 24px; border: none; background: transparent;
+      color: var(--dim); font-size: 14px; cursor: pointer;
+      border-radius: 5px; display: flex; align-items: center;
+      justify-content: center; opacity: 0; transition: all .15s;
+      font-family: inherit;
+    }
+    .task-item:hover .task-del { opacity: 1; }
+    .task-del:hover { background: rgba(239,68,68,.1); color: var(--red); }
+    .task-empty {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 8px; padding: 32px; text-align: center; color: var(--dim);
+    }
+    .task-empty-icon { font-size: 32px; opacity: .3; }
+    .task-empty-txt  { font-size: 12px; line-height: 1.6; }
+
+    /* ── Email Digest page ───────────────────────────────── */
+    .digest-view {
+      width: 100%; overflow-y: auto; padding: 28px 32px;
+      display: flex; flex-direction: column; gap: 24px;
+    }
+    .digest-view::-webkit-scrollbar { width: 4px; }
+    .digest-view::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    .digest-stats {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+    }
+    .digest-stat {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 16px;
+    }
+    .digest-stat-num {
+      font-size: 32px; font-weight: 900; letter-spacing: -1px; line-height: 1;
+    }
+    .digest-stat-lbl { font-size: 11px; color: var(--muted); margin-top: 5px; }
+    .digest-section-title {
+      font-size: 13px; font-weight: 700; margin-bottom: 10px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .digest-section-title span {
+      font-size: 10px; font-weight: 600; padding: 2px 8px;
+      border-radius: 10px; background: var(--card);
+      border: 1px solid var(--border); color: var(--muted);
+    }
+    .digest-email-list { display: flex; flex-direction: column; gap: 6px; }
+    .digest-email-row {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 12px 14px; background: var(--card);
+      border: 1px solid var(--border); border-radius: 10px;
+      transition: border-color .15s; cursor: default;
+    }
+    .digest-email-row:hover { border-color: #2a2a2a; }
+    .digest-email-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--email-color); margin-top: 5px; flex-shrink: 0;
+    }
+    .digest-email-from { font-size: 12px; font-weight: 600; }
+    .digest-email-subj { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .digest-email-time { font-size: 11px; color: var(--dim); margin-left: auto; flex-shrink: 0; }
+    .digest-ai-summary {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 16px 18px;
+    }
+    .digest-ai-label {
+      font-size: 10px; font-weight: 700; letter-spacing: .1em;
+      text-transform: uppercase; color: var(--ai-color); margin-bottom: 8px;
+    }
+    .digest-ai-text { font-size: 13px; color: var(--muted); line-height: 1.7; }
+    .digest-connect-cta {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 12px; padding: 48px 24px; text-align: center;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 14px;
+    }
+    .digest-connect-icon { font-size: 40px; opacity: .3; }
+    .digest-connect-title { font-size: 16px; font-weight: 700; }
+    .digest-connect-desc { font-size: 13px; color: var(--muted); max-width: 320px; line-height: 1.6; }
 
     /* ── Landing Page ────────────────────────────────────── */
     .landing-screen {
@@ -848,42 +1093,21 @@
 
     <!-- Sidebar -->
     <nav class="sidebar">
-      <button class="compose-btn">✏&#xFE0E;&nbsp; Compose</button>
+      <div class="sidebar-brand">MailCal</div>
 
       <div class="nav-item active" id="homeNavItem" onclick="setNav(this,'home')">
         <span class="ni">⊞</span> Home
       </div>
-      <div class="sidebar-sep"></div>
-
-      <div class="nav-lbl">Mail</div>
-      <div class="nav-item active" onclick="setNav(this,'inbox')">
-        <span class="ni">📥</span> Inbox
+      <div class="nav-item" id="tasksNavItem" onclick="setNav(this,'tasks')">
+        <span class="ni">✓</span> Tasks
+        <span class="badge" id="tasksBadge" style="display:none"></span>
       </div>
-      <div class="nav-item" onclick="setNav(this,'starred')">
-        <span class="ni">⭐</span> Starred
-      </div>
-      <div class="nav-item" onclick="setNav(this,'sent')">
-        <span class="ni">📤</span> Sent
-      </div>
-      <div class="nav-item" onclick="setNav(this,'drafts')">
-        <span class="ni">📝</span> Drafts
-      </div>
-      <div class="nav-item" onclick="setNav(this,'spam')">
-        <span class="ni">🚫</span> Spam
-      </div>
-      <div class="nav-item" onclick="setNav(this,'trash')">
-        <span class="ni">🗑</span> Trash
+      <div class="nav-item" id="digestNavItem" onclick="setNav(this,'digest')">
+        <span class="ni">📋</span> Email Digest
+        <span class="badge r" id="digestBadge" style="display:none"></span>
       </div>
 
-      <div class="sidebar-sep"></div>
-      <div class="nav-lbl">Calendar</div>
-      <div class="nav-item" onclick="setNav(this,'calendar')">
-        <span class="ni">📅</span> My Calendar
-      </div>
-      <div class="nav-item" onclick="setNav(this,'shared')">
-        <span class="ni">👥</span> Shared
-      </div>
-
+      <div style="flex:1"></div>
       <div class="sidebar-sep"></div>
       <div class="nav-item" onclick="goSettings()">
         <span class="ni">⚙</span> Settings
@@ -963,13 +1187,14 @@ const DEFAULTS = {
   ai: {
     active: '',
     ollama: { url: 'http://localhost:11434', model: 'llama3.1:8b' },
-    gemini: { key: '' },
-    claude:  { key: '' },
+    gemini: { key: '', model: 'gemini-2.0-flash' },
+    claude:  { key: '', model: 'claude-sonnet-4-6' },
     openai:  { key: '', model: 'gpt-4o-mini' },
   },
   general: { notifications: true, calendarReminders: true, autoDetectMeetings: true, emailDays: 7 },
-  theme:   { accent: '', scheme: 'mono' },
-  dashboard: { widgets: ['unread','upcoming','quickcompose','ai_quick'] }
+  theme:   { accent: '' },
+  dashboard: { widgets: ['unread','upcoming'] },
+  tasks: []
 };
 
 const PROFILE_COLORS = [
@@ -1001,27 +1226,15 @@ function applyTheme() {
   const t = CFG.theme || {};
   const p = getActiveProfile();
   const accent = t.accent || (p ? p.color : '#6366f1');
-  const scheme = t.scheme || 'mono';
   const root = document.documentElement.style;
-  root.setProperty('--accent',   accent);
-  root.setProperty('--accent-d', hexToRgba(accent, .12));
-  root.setProperty('--accent-b', hexToRgba(accent, .25));
-  if (t._joy) {
-    root.setProperty('--email-color',  '#f97316');
-    root.setProperty('--cal-color',    '#22c55e');
-    root.setProperty('--ai-color',     '#eab308');
-    root.setProperty('--events-color', '#3b82f6');
-  } else if (scheme === 'multi') {
-    root.setProperty('--email-color',  '#ef4444');
-    root.setProperty('--cal-color',    '#3b82f6');
-    root.setProperty('--ai-color',     '#8b5cf6');
-    root.setProperty('--events-color', '#22c55e');
-  } else {
-    root.setProperty('--email-color',  accent);
-    root.setProperty('--cal-color',    accent);
-    root.setProperty('--ai-color',     accent);
-    root.setProperty('--events-color', accent);
-  }
+
+  root.setProperty('--accent',       accent);
+  root.setProperty('--accent-d',     hexToRgba(accent, .12));
+  root.setProperty('--accent-b',     hexToRgba(accent, .25));
+  root.setProperty('--email-color',  accent);
+  root.setProperty('--cal-color',    accent);
+  root.setProperty('--ai-color',     accent);
+  root.setProperty('--events-color', accent);
 }
 
 // ── Profile Store ─────────────────────────────────────────────────
@@ -1036,9 +1249,22 @@ function getActiveProfile() {
   return s.active ? s.profiles[s.active] : null;
 }
 
+function _deepMerge(base, over) {
+  const out = Object.assign({}, base);
+  for (const k in over) {
+    if (over[k] && typeof over[k] === 'object' && !Array.isArray(over[k]) &&
+        base[k] && typeof base[k] === 'object' && !Array.isArray(base[k])) {
+      out[k] = _deepMerge(base[k], over[k]);
+    } else {
+      out[k] = over[k];
+    }
+  }
+  return out;
+}
 function loadCfg() {
   const p = getActiveProfile();
-  return (p && p.config) ? p.config : structuredClone(DEFAULTS);
+  const stored = (p && p.config) ? p.config : null;
+  return stored ? _deepMerge(structuredClone(DEFAULTS), stored) : structuredClone(DEFAULTS);
 }
 function saveCfg(cfg) {
   const s = getPStore();
@@ -1094,8 +1320,9 @@ function goDashboard() {
 function setNav(el, section) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   el.classList.add('active');
-  if (section === 'home') { goHome(); return; }
-  if (currentView !== 'dashboard') goDashboard();
+  if (section === 'home')   { goHome();   return; }
+  if (section === 'tasks')  { goTasks();  return; }
+  if (section === 'digest') { goDigest(); return; }
 }
 
 // ── Calendar ──────────────────────────────────────────────────────
@@ -1253,18 +1480,232 @@ function _wAI() {
     '<span style="color:var(--ai-color)">&#10022;</span>', 'AI Assistant', body, '');
 }
 
-function homeAiSend() {
+async function homeAiSend() {
   const inp = document.getElementById('homeAiInp');
   const rep = document.getElementById('homeAiReply');
   if (!inp || !inp.value.trim()) return;
+  const txt = inp.value.trim();
   inp.value = '';
-  if (rep) rep.textContent = 'Full AI integration coming in the next build.';
+  inp.disabled = true;
+  if (rep) { rep.style.display = 'block'; rep.style.color = 'var(--muted)'; rep.textContent = '…'; }
+  try {
+    const reply = await callAI(txt);
+    if (rep) { rep.textContent = reply; rep.style.color = 'var(--text)'; }
+  } catch (e) {
+    if (rep) { rep.textContent = e.message; rep.style.color = 'var(--red)'; }
+  } finally {
+    inp.disabled = false;
+  }
 }
 
 function setEmailDays(d) {
   if (!CFG.general) CFG.general = {};
   CFG.general.emailDays = d;
   saveCfg(CFG);
+}
+
+function buildActionsPanel() {
+  const actions = _getSampleActions();
+  const countHtml = actions.length
+    ? '<span class="actions-count">' + actions.length + '</span>' : '';
+
+  const cardsHtml = actions.length
+    ? actions.map(function(a, i) {
+        var btnHtml = '';
+        if (a.type === 'meeting') {
+          btnHtml = '<div class="ac-btns">' +
+            '<button class="ac-btn yes" onclick="dismissAction(' + i + ')">Add to Calendar</button>' +
+            '<button class="ac-btn no"  onclick="dismissAction(' + i + ')">Dismiss</button>' +
+            '</div>';
+        } else if (a.type === 'draft') {
+          btnHtml = '<div class="ac-btns">' +
+            '<button class="ac-btn yes" onclick="dismissAction(' + i + ')">Create Draft</button>' +
+            '<button class="ac-btn no"  onclick="dismissAction(' + i + ')">Skip</button>' +
+            '</div>';
+        } else {
+          btnHtml = '<div class="ac-btns">' +
+            '<button class="ac-btn full" onclick="dismissAction(' + i + ')">Got it</button>' +
+            '</div>';
+        }
+        return '<div class="action-card ' + a.type + '" id="ac_' + i + '">' +
+          '<div class="ac-type ' + a.type + '">' + a.label + '</div>' +
+          '<div class="ac-text">' + a.text + '</div>' +
+          btnHtml + '</div>';
+      }).join('')
+    : '<div class="actions-empty">' +
+        '<div class="actions-empty-icon">&#10003;</div>' +
+        '<div class="actions-empty-txt">All clear — no actions needed right now.<br>Connect email to start detecting meetings &amp; events.</div>' +
+      '</div>';
+
+  return '<div style="display:flex;flex-direction:column;flex:1;overflow:hidden">' +
+    '<div class="actions-head">' +
+      '<span class="actions-title">Actions</span>' + countHtml +
+    '</div>' +
+    '<div class="actions-list">' + cardsHtml + '</div>' +
+  '</div>';
+}
+
+function _getSampleActions() {
+  const hasEmail = CFG.gmail.connected || CFG.outlook.connected;
+  const hasAI    = !!CFG.ai.active;
+  if (!hasEmail) return [];
+  var items = [
+    { type: 'meeting', label: 'Meeting Detected',
+      text: 'Email from Sarah: "Lunch next Thursday at noon — does that work for you?"' },
+    { type: 'urgent',  label: 'Needs Reply',
+      text: '3 emails flagged as awaiting your response (oldest: 2 days ago).' },
+  ];
+  if (hasAI) items.push({
+    type: 'ai', label: 'AI Draft Ready',
+    text: 'AI can draft a reply to the project update from Mike. Review before sending.',
+  });
+  return items;
+}
+
+function dismissAction(i) {
+  const el = document.getElementById('ac_' + i);
+  if (el) el.remove();
+  const list = document.querySelector('.actions-list');
+  if (list && !list.querySelector('.action-card')) {
+    list.innerHTML = '<div class="actions-empty">' +
+      '<div class="actions-empty-icon">&#10003;</div>' +
+      '<div class="actions-empty-txt">All clear!</div></div>';
+  }
+  const badge = document.querySelector('.actions-count');
+  if (badge) {
+    const n = parseInt(badge.textContent) - 1;
+    if (n <= 0) badge.remove(); else badge.textContent = n;
+  }
+}
+
+function buildAIMiniPanel() {
+  const hasAI = !!CFG.ai.active;
+  const status = hasAI ? CFG.ai.active : 'Not connected';
+  const inputHtml = hasAI
+    ? '<div class="ai-mini-input">' +
+        '<input id="miniAiInp" placeholder="Ask anything…"' +
+        ' onkeydown="if(event.key===\'Enter\'){miniAiSend()}">' +
+        '<button class="ai-mini-send" onclick="miniAiSend()">&#x2191;</button>' +
+      '</div>'
+    : '<div style="padding:8px 12px;font-size:11px;color:var(--dim)">' +
+        '<span style="color:var(--accent);cursor:pointer" onclick="goSettings()">Connect AI in Settings &#x2192;</span>' +
+      '</div>';
+
+  return '<div class="ai-mini">' +
+    '<div class="ai-mini-head">' +
+      '<div class="ai-mini-icon">&#10022;</div>' +
+      '<span class="ai-mini-title">AI Assistant</span>' +
+      '<span class="ai-mini-status">' + status + '</span>' +
+    '</div>' +
+    '<div class="ai-mini-msgs" id="miniAiMsgs">' +
+      (hasAI ? '<div class="bubble ai" style="font-size:11px">Hi! I can summarize emails, draft replies, and detect meetings. Connect your accounts to get started.</div>' : '') +
+    '</div>' +
+    inputHtml +
+  '</div>';
+}
+
+// ── AI Engine ─────────────────────────────────────────────────────
+const AI_SYSTEM = 'You are an AI assistant built into MailCal, a smart email and calendar manager. ' +
+  'Help users summarize emails, draft replies, detect meetings, manage tasks, and stay on top of their inbox. ' +
+  'Be concise and professional. When drafting emails format them with a greeting and sign-off.';
+
+let _chatHistory = [];
+
+async function callAI(userText) {
+  const provider = CFG.ai.active;
+  _chatHistory.push({ role: 'user', content: userText });
+  const messages = [{ role: 'system', content: AI_SYSTEM }, ..._chatHistory];
+  let reply;
+  if (provider === 'ollama')  reply = await _callOllama(messages);
+  else if (provider === 'gemini')  reply = await _callGemini(messages);
+  else if (provider === 'openai')  reply = await _callOpenAI(messages);
+  else if (provider === 'claude')  reply = await _callClaude(messages);
+  else throw new Error('No AI provider selected. Go to Settings → AI Assistant.');
+  _chatHistory.push({ role: 'assistant', content: reply });
+  return reply;
+}
+
+async function _callOllama(messages) {
+  const base  = (CFG.ai.ollama.url || 'http://localhost:11434').replace(/\/$/, '');
+  const model = CFG.ai.ollama.model || 'llama3.1:8b';
+  const res = await fetch(base + '/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model, messages, stream: false }),
+  });
+  if (!res.ok) throw new Error('Ollama error ' + res.status + '. Make sure Ollama is running.');
+  const d = await res.json();
+  return d.message.content;
+}
+
+async function _callGemini(messages) {
+  const key = CFG.ai.gemini.key;
+  if (!key) throw new Error('No Gemini API key set. Go to Settings → AI Assistant.');
+  const model = CFG.ai.gemini.model || 'gemini-2.0-flash';
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent?key=' + key;
+  const contents = messages
+    .filter(m => m.role !== 'system')
+    .map(m => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] }));
+  const sys = messages.find(m => m.role === 'system');
+  const body = { contents };
+  if (sys) body.systemInstruction = { parts: [{ text: sys.content }] };
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error('Gemini: ' + (e.error?.message || res.statusText)); }
+  const d = await res.json();
+  return d.candidates[0].content.parts[0].text;
+}
+
+async function _callOpenAI(messages) {
+  const key   = CFG.ai.openai.key;
+  const model = CFG.ai.openai.model || 'gpt-4o-mini';
+  if (!key) throw new Error('No OpenAI API key set. Go to Settings → AI Assistant.');
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+    body: JSON.stringify({ model, messages }),
+  });
+  if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error('OpenAI: ' + (e.error?.message || res.statusText)); }
+  const d = await res.json();
+  return d.choices[0].message.content;
+}
+
+async function _callClaude(messages) {
+  throw new Error('Claude cannot be called directly from a browser due to CORS restrictions. Use Gemini, OpenAI, or Ollama instead.');
+}
+
+function _aiAddBubble(containerEl, text, who, fontSize) {
+  const b = document.createElement('div');
+  b.className = 'bubble ' + who;
+  if (fontSize) b.style.fontSize = fontSize;
+  b.textContent = text;
+  containerEl.appendChild(b);
+  containerEl.scrollTop = containerEl.scrollHeight;
+  return b;
+}
+
+async function miniAiSend() {
+  const inp  = document.getElementById('miniAiInp');
+  const msgs = document.getElementById('miniAiMsgs');
+  if (!inp || !msgs || !inp.value.trim()) return;
+  const txt = inp.value.trim();
+  inp.value = '';
+  inp.disabled = true;
+  _aiAddBubble(msgs, txt, 'user', '11px');
+  const thinking = _aiAddBubble(msgs, '…', 'ai', '11px');
+  try {
+    const reply = await callAI(txt);
+    thinking.textContent = reply;
+  } catch (e) {
+    thinking.textContent = e.message;
+    thinking.style.color = 'var(--red)';
+  } finally {
+    inp.disabled = false;
+    inp.focus();
+  }
 }
 
 function renderHome() {
@@ -1274,18 +1715,23 @@ function renderHome() {
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
   const dateStr  = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 
-  const order = (CFG.dashboard && CFG.dashboard.widgets) ? CFG.dashboard.widgets
-    : ['unread','upcoming','quickcompose','ai_quick'];
-  const map = { unread: _wUnread, upcoming: _wUpcoming, quickcompose: _wCompose, ai_quick: _wAI };
+  const order = (CFG.dashboard && CFG.dashboard.widgets) ? CFG.dashboard.widgets : ['unread','upcoming'];
+  const map   = { unread: _wUnread, upcoming: _wUpcoming };
   const widgetsHtml = order.map(function(id) { return map[id] ? map[id]() : ''; }).join('');
 
   document.getElementById('content').innerHTML =
     '<div class="home-view">' +
-      '<div class="home-greeting">' +
-        '<div class="home-greeting-name">' + greeting + ', ' + name + '!</div>' +
-        '<div class="home-greeting-date">' + dateStr + '</div>' +
+      '<div class="home-main">' +
+        '<div class="home-greeting">' +
+          '<div class="home-greeting-name">' + greeting + ', ' + name + '!</div>' +
+          '<div class="home-greeting-date">' + dateStr + '</div>' +
+        '</div>' +
+        '<div class="widget-grid" id="widgetGrid">' + widgetsHtml + '</div>' +
       '</div>' +
-      '<div class="widget-grid" id="widgetGrid">' + widgetsHtml + '</div>' +
+      '<div class="home-right">' +
+        buildActionsPanel() +
+        buildAIMiniPanel() +
+      '</div>' +
     '</div>';
 }
 
@@ -1397,6 +1843,162 @@ function addBubble(text, who) {
   b.textContent = text;
   msgs.appendChild(b);
   msgs.scrollTop = msgs.scrollHeight;
+}
+
+// ── Tasks ─────────────────────────────────────────────────────────
+function goTasks() {
+  currentView = 'tasks';
+  document.getElementById('searchWrap').style.display = '';
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const el = document.getElementById('tasksNavItem');
+  if (el) el.classList.add('active');
+  renderTasks();
+}
+
+function renderTasks() {
+  const tasks = CFG.tasks || [];
+  const open = tasks.filter(t => !t.done);
+  const done = tasks.filter(t =>  t.done);
+
+  const taskRow = function(t) {
+    return '<div class="task-item' + (t.done ? ' done' : '') + '" id="task_' + t.id + '">' +
+      '<div class="task-check" onclick="toggleTask(\'' + t.id + '\')">' + (t.done ? '&#10003;' : '') + '</div>' +
+      '<div class="task-text">' + t.text + '</div>' +
+      '<button class="task-del" onclick="deleteTask(\'' + t.id + '\')" title="Delete">&#x2715;</button>' +
+    '</div>';
+  };
+
+  const openHtml = open.length
+    ? open.map(taskRow).join('')
+    : '<div class="task-empty"><div class="task-empty-icon">&#10003;</div><div class="task-empty-txt">No open tasks — add one above.</div></div>';
+
+  const doneSection = done.length
+    ? '<div class="task-section-lbl">Completed · ' + done.length + '</div>' +
+      '<div class="task-list">' + done.map(taskRow).join('') + '</div>'
+    : '';
+
+  document.getElementById('content').innerHTML =
+    '<div class="tasks-view">' +
+      '<div class="page-title">Tasks</div>' +
+      '<div class="page-sub">Track what needs to get done. Soon: auto-detected from your emails.</div>' +
+      '<div class="task-input-row">' +
+        '<input class="task-input" id="taskInp" placeholder="Add a task…"' +
+        ' onkeydown="if(event.key===\'Enter\')addTask()">' +
+        '<button class="task-add-btn" onclick="addTask()">+ Add Task</button>' +
+      '</div>' +
+      '<div class="task-sections">' +
+        '<div>' +
+          '<div class="task-section-lbl">Open · ' + open.length + '</div>' +
+          '<div class="task-list" id="openList">' + openHtml + '</div>' +
+        '</div>' +
+        (doneSection ? '<div>' + doneSection + '</div>' : '') +
+      '</div>' +
+    '</div>';
+  updateTasksBadge();
+}
+
+function addTask() {
+  const inp = document.getElementById('taskInp');
+  if (!inp || !inp.value.trim()) return;
+  const task = { id: Date.now().toString(), text: inp.value.trim(), done: false, created: Date.now() };
+  if (!CFG.tasks) CFG.tasks = [];
+  CFG.tasks.unshift(task);
+  saveCfg(CFG);
+  inp.value = '';
+  renderTasks();
+}
+
+function toggleTask(id) {
+  const t = (CFG.tasks || []).find(t => t.id === id);
+  if (!t) return;
+  t.done = !t.done;
+  saveCfg(CFG);
+  renderTasks();
+}
+
+function deleteTask(id) {
+  CFG.tasks = (CFG.tasks || []).filter(t => t.id !== id);
+  saveCfg(CFG);
+  renderTasks();
+}
+
+function updateTasksBadge() {
+  const open = (CFG.tasks || []).filter(t => !t.done).length;
+  const badge = document.getElementById('tasksBadge');
+  if (!badge) return;
+  if (open > 0) { badge.textContent = open; badge.style.display = ''; }
+  else badge.style.display = 'none';
+}
+
+// ── Email Digest ──────────────────────────────────────────────────
+function goDigest() {
+  currentView = 'digest';
+  document.getElementById('searchWrap').style.display = '';
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const el = document.getElementById('digestNavItem');
+  if (el) el.classList.add('active');
+  renderDigest();
+}
+
+function renderDigest() {
+  const hasEmail = CFG.gmail.connected || CFG.outlook.connected;
+  const hasAI    = !!CFG.ai.active;
+
+  if (!hasEmail) {
+    document.getElementById('content').innerHTML =
+      '<div class="digest-view">' +
+        '<div class="page-title">Email Digest</div>' +
+        '<div class="page-sub">A smart daily summary of what matters in your inbox.</div>' +
+        '<div class="digest-connect-cta">' +
+          '<div class="digest-connect-icon">&#128231;</div>' +
+          '<div class="digest-connect-title">Connect your email to get started</div>' +
+          '<div class="digest-connect-desc">Once connected, MailCal will scan your inbox and surface the emails that need your attention — so you spend less time in your inbox.</div>' +
+          '<button class="save-btn" onclick="goSettings()">Connect Email Account</button>' +
+        '</div>' +
+      '</div>';
+    return;
+  }
+
+  const aiSection = hasAI
+    ? '<div class="digest-ai-summary">' +
+        '<div class="digest-ai-label">&#10022; AI Summary</div>' +
+        '<div class="digest-ai-text">Your inbox looks manageable today. 3 emails need a reply, including one from Sarah about a lunch meeting next Thursday. Mike\'s project update is waiting — AI can draft a reply when you\'re ready. No urgent deadlines detected in the next 48 hours.</div>' +
+      '</div>'
+    : '<div class="digest-ai-summary" style="opacity:.5">' +
+        '<div class="digest-ai-label">&#10022; AI Summary</div>' +
+        '<div class="digest-ai-text">Connect an AI provider in Settings to get smart inbox summaries, draft suggestions, and meeting detection.</div>' +
+      '</div>';
+
+  const sampleEmails = [
+    { from: 'Sarah Johnson', subj: 'Lunch next Thursday — does that work?', time: '9:42 AM' },
+    { from: 'Mike Chen',     subj: 'Project update — Q2 report attached',   time: 'Yesterday' },
+    { from: 'HR Team',       subj: 'Time-off policy update for 2026',        time: 'Yesterday' },
+  ];
+  const emailRows = sampleEmails.map(function(e) {
+    return '<div class="digest-email-row">' +
+      '<div class="digest-email-dot"></div>' +
+      '<div style="flex:1"><div class="digest-email-from">' + e.from + '</div>' +
+      '<div class="digest-email-subj">' + e.subj + '</div></div>' +
+      '<div class="digest-email-time">' + e.time + '</div>' +
+    '</div>';
+  }).join('');
+
+  document.getElementById('content').innerHTML =
+    '<div class="digest-view">' +
+      '<div class="page-title">Email Digest</div>' +
+      '<div class="page-sub">Your inbox summary — updated as emails arrive.</div>' +
+      '<div class="digest-stats">' +
+        '<div class="digest-stat"><div class="digest-stat-num" style="color:var(--email-color)">—</div><div class="digest-stat-lbl">Unread</div></div>' +
+        '<div class="digest-stat"><div class="digest-stat-num" style="color:var(--red)">3</div><div class="digest-stat-lbl">Need Reply</div></div>' +
+        '<div class="digest-stat"><div class="digest-stat-num" style="color:var(--cal-color)">1</div><div class="digest-stat-lbl">Meetings Detected</div></div>' +
+        '<div class="digest-stat"><div class="digest-stat-num" style="color:var(--green)">0</div><div class="digest-stat-lbl">Urgent</div></div>' +
+      '</div>' +
+      aiSection +
+      '<div>' +
+        '<div class="digest-section-title">Needs Your Attention <span>' + sampleEmails.length + '</span></div>' +
+        '<div class="digest-email-list">' + emailRows + '</div>' +
+      '</div>' +
+    '</div>';
 }
 
 // ── Settings ──────────────────────────────────────────────────────
@@ -1660,6 +2262,16 @@ function renderAITab() {
                    oninput="CFG.ai.gemini.key=this.value" />
             <div class="field-help"><a onclick="openHelp('gemini')">Get a free key at Google AI Studio →</a></div>
           </div>
+          <div class="field-group">
+            <label>Model</label>
+            <select onchange="CFG.ai.gemini.model=this.value;saveCfg(CFG)">
+              <option value="gemini-2.0-flash"     ${(ai.gemini.model||'gemini-2.0-flash')==='gemini-2.0-flash'?'selected':''}>gemini-2.0-flash (recommended)</option>
+              <option value="gemini-2.5-flash-preview-05-20" ${ai.gemini.model==='gemini-2.5-flash-preview-05-20'?'selected':''}>gemini-2.5-flash</option>
+              <option value="gemini-2.5-pro-preview-05-06"   ${ai.gemini.model==='gemini-2.5-pro-preview-05-06'?'selected':''}>gemini-2.5-pro</option>
+              <option value="gemini-1.5-flash"     ${ai.gemini.model==='gemini-1.5-flash'?'selected':''}>gemini-1.5-flash</option>
+              <option value="gemini-1.5-pro"       ${ai.gemini.model==='gemini-1.5-pro'?'selected':''}>gemini-1.5-pro</option>
+            </select>
+          </div>
           <button class="pcard-btn test" onclick="saveAI('gemini')">Save Key</button>
         </div>
 
@@ -1680,6 +2292,15 @@ function renderAITab() {
                    oninput="CFG.ai.claude.key=this.value" />
             <div class="field-help"><a onclick="openHelp('claude')">Get a key at console.anthropic.com →</a></div>
           </div>
+          <div class="field-group">
+            <label>Model</label>
+            <select onchange="CFG.ai.claude.model=this.value;saveCfg(CFG)">
+              <option value="claude-sonnet-4-6"        ${(ai.claude.model||'claude-sonnet-4-6')==='claude-sonnet-4-6'?'selected':''}>claude-sonnet-4-6 (recommended)</option>
+              <option value="claude-opus-4-7"          ${ai.claude.model==='claude-opus-4-7'?'selected':''}>claude-opus-4-7</option>
+              <option value="claude-haiku-4-5-20251001"${ai.claude.model==='claude-haiku-4-5-20251001'?'selected':''}>claude-haiku-4-5</option>
+            </select>
+          </div>
+          <div class="field-help" style="margin-bottom:8px;color:#f97316">Note: Claude cannot be called directly from a browser due to CORS. Use a proxy or choose another provider.</div>
           <button class="pcard-btn test" onclick="saveAI('claude')">Save Key</button>
         </div>
 
@@ -1718,49 +2339,20 @@ function renderAITab() {
 function buildThemeSection() {
   const t = CFG.theme || {};
   const p = getActiveProfile();
-  const profileColor = p ? p.color : '#6366f1';
-  const curAccent = t.accent || profileColor;
-  const curScheme = t.scheme || 'mono';
+  const curAccent = t.accent || (p ? p.color : '#6366f1');
 
   const swatches = ACCENT_COLORS.map(function(c) {
-    const isSel = c.hex === curAccent;
-    return '<div class="accent-swatch' + (isSel ? ' selected' : '') + '"' +
+    const sel = c.hex === curAccent;
+    return '<div class="accent-swatch' + (sel ? ' selected' : '') + '"' +
       ' style="background:' + c.hex + ';color:' + c.hex + '"' +
       ' title="' + c.name + '"' +
       ' onclick="pickAccent(\'' + c.hex + '\',this)"></div>';
   }).join('');
 
-  const monoStripes = [curAccent, curAccent, curAccent].map(function(c) {
-    return '<div class="scheme-stripe" style="background:' + c + '"></div>';
-  }).join('');
-  const multiStripes = ['#ef4444','#3b82f6','#8b5cf6'].map(function(c) {
-    return '<div class="scheme-stripe" style="background:' + c + '"></div>';
-  }).join('');
-  const joyStripes = ['#f97316','#22c55e','#eab308','#3b82f6'].map(function(c) {
-    return '<div class="scheme-stripe" style="background:' + c + '"></div>';
-  }).join('');
-
-  var schemes = [
-    { id:'mono',  label:'Mono',        stripes: monoStripes },
-    { id:'multi', label:'Multicolor',  stripes: multiStripes },
-    { id:'joy',   label:'Joyful',      stripes: joyStripes },
-  ];
-  const schemeCards = schemes.map(function(s) {
-    return '<div class="scheme-card' + (s.id === curScheme ? ' selected' : '') + '"' +
-      ' onclick="pickScheme(\'' + s.id + '\',this)">' +
-      '<div class="scheme-preview">' + s.stripes + '</div>' +
-      '<div class="scheme-label">' + s.label + '</div>' +
-      '</div>';
-  }).join('');
-
   return '<div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px 18px">' +
-    '<div style="font-size:13px;font-weight:600;margin-bottom:10px">Accent Color</div>' +
+    '<div style="font-size:13px;font-weight:600;margin-bottom:4px">Color</div>' +
+    '<div style="font-size:12px;color:var(--muted);margin-bottom:10px">Pick an accent color for the app.</div>' +
     '<div class="accent-grid">' + swatches + '</div>' +
-    '<div style="font-size:13px;font-weight:600;margin-top:18px;margin-bottom:4px">Color Scheme</div>' +
-    '<div style="font-size:12px;color:var(--muted);margin-bottom:10px">' +
-      'Mono uses your accent color everywhere. Multicolor gives each section its own color. Joyful mixes several warm tones.' +
-    '</div>' +
-    '<div class="scheme-grid">' + schemeCards + '</div>' +
   '</div>';
 }
 
@@ -1769,38 +2361,7 @@ function pickAccent(hex, el) {
   CFG.theme.accent = hex;
   saveCfg(CFG);
   applyTheme();
-  document.querySelectorAll('.accent-swatch').forEach(function(s) {
-    s.classList.remove('selected');
-    s.style.color = s.style.background;
-  });
-  el.classList.add('selected');
-  // Refresh mono scheme card stripes to reflect new accent
-  const monoCard = document.querySelector('.scheme-card[onclick*="mono"]');
-  if (monoCard) {
-    monoCard.querySelectorAll('.scheme-stripe').forEach(function(stripe) {
-      stripe.style.background = hex;
-    });
-  }
-}
-
-function pickScheme(id, el) {
-  if (!CFG.theme) CFG.theme = {};
-  if (id === 'joy') {
-    CFG.theme.scheme = 'multi';
-    CFG.theme._joy = true;
-    saveCfg(CFG);
-    const root = document.documentElement.style;
-    root.setProperty('--email-color',  '#f97316');
-    root.setProperty('--cal-color',    '#22c55e');
-    root.setProperty('--ai-color',     '#eab308');
-    root.setProperty('--events-color', '#3b82f6');
-  } else {
-    CFG.theme.scheme = id;
-    CFG.theme._joy = false;
-    saveCfg(CFG);
-    applyTheme();
-  }
-  document.querySelectorAll('.scheme-card').forEach(function(c) { c.classList.remove('selected'); });
+  document.querySelectorAll('.accent-swatch').forEach(function(s) { s.classList.remove('selected'); });
   el.classList.add('selected');
 }
 
@@ -1890,18 +2451,36 @@ function disconnect(key) {
   else renderSettings('calendar');
 }
 
-function saveAI(provider) {
+async function saveAI(provider) {
   saveCfg(CFG);
   const btn = event.target;
   const orig = btn.textContent;
-  btn.textContent = '✓ Saved';
-  btn.style.color = 'var(--green)';
-  btn.style.borderColor = 'rgba(34,197,94,.3)';
-  setTimeout(() => {
-    btn.textContent = orig;
-    btn.style.color = '';
-    btn.style.borderColor = '';
-  }, 2000);
+  btn.textContent = 'Testing…';
+  btn.disabled = true;
+  try {
+    const prev = CFG.ai.active;
+    CFG.ai.active = provider;
+    const prevHistory = _chatHistory;
+    _chatHistory = [];
+    await callAI('Say only: "Connected!" and nothing else.');
+    _chatHistory = prevHistory;
+    CFG.ai.active = prev;
+    saveCfg(CFG);
+    btn.textContent = '✓ Connected!';
+    btn.style.color = 'var(--green)';
+    btn.style.borderColor = 'rgba(34,197,94,.3)';
+  } catch (e) {
+    btn.textContent = '✗ Failed — ' + e.message.slice(0, 40);
+    btn.style.color = 'var(--red)';
+    btn.style.borderColor = 'rgba(239,68,68,.3)';
+  } finally {
+    btn.disabled = false;
+    setTimeout(() => {
+      btn.textContent = orig;
+      btn.style.color = '';
+      btn.style.borderColor = '';
+    }, 3000);
+  }
 }
 
 function toggleGeneral(el, key) {
@@ -2112,6 +2691,7 @@ window.addEventListener('beforeinstallprompt', (e) => {
 });
 
 function renderLanding() {
+  document.body.classList.add('ready');
   document.querySelectorAll('.landing-screen').forEach(e => e.remove());
   const el = document.createElement('div');
   el.className = 'landing-screen';
@@ -2193,6 +2773,7 @@ async function triggerInstall() {
 let authTab = 'signup';
 
 function renderAuthScreen() {
+  document.body.classList.add('ready');
   document.querySelectorAll('.auth-screen,.status-screen,.profile-setup,.landing-screen').forEach(e => e.remove());
   const el = document.createElement('div');
   el.className = 'auth-screen';
@@ -2352,6 +2933,7 @@ function stopApprovalWatch() {
 }
 
 function showPendingScreen(email) {
+  document.body.classList.add('ready');
   document.querySelectorAll('.auth-screen,.status-screen').forEach(e => e.remove());
   const el = document.createElement('div');
   el.className = 'status-screen';
@@ -2372,6 +2954,7 @@ function showPendingScreen(email) {
 }
 
 function showDeniedScreen(email) {
+  document.body.classList.add('ready');
   document.querySelectorAll('.auth-screen,.status-screen').forEach(e => e.remove());
   const el = document.createElement('div');
   el.className = 'status-screen';
@@ -2392,9 +2975,9 @@ async function launchApp() {
   const ps = getPStore();
   if (!ps.active || !ps.profiles[ps.active]) {
     showProfileSetup(false);
+    document.body.classList.add('ready');
   } else {
     CFG = loadCfg();
-    // Use profile color as accent if no theme accent set yet
     if (!CFG.theme) CFG.theme = { accent: '', scheme: 'mono' };
     if (!CFG.theme.accent) {
       const p = getActiveProfile();
@@ -2403,6 +2986,7 @@ async function launchApp() {
     applyTheme();
     updateAvatarUI();
     goHome();
+    document.body.classList.add('ready');
   }
 }
 
