@@ -7,6 +7,8 @@
   <meta name="description" content="MailCal — Email & Calendar Manager" />
   <link rel="manifest" href="manifest.json" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://accounts.google.com/gsi/client" async></script>
+  <script src="https://alcdn.msauth.net/browser/2.38.2/js/msal-browser.min.js" async></script>
   <title>MailCal</title>
   <style>
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -642,6 +644,25 @@
     .ai-mini-send:hover { opacity: .85; }
 
     /* ── Tasks page ──────────────────────────────────────── */
+    .task-action-card {
+      background: linear-gradient(135deg, rgba(99,102,241,.1), rgba(99,102,241,.05));
+      border: 1px solid rgba(99,102,241,.3); border-radius: 12px;
+      padding: 14px 16px; margin-bottom: 18px; cursor: pointer;
+      transition: all .15s; display: flex; align-items: center; gap: 12px;
+    }
+    .task-action-card:hover { border-color: var(--accent); background: rgba(99,102,241,.14); }
+    .task-action-icon { width: 36px; height: 36px; border-radius: 9px; background: var(--accent); display:flex;align-items:center;justify-content:center; font-size:16px; flex-shrink:0; }
+    .task-action-title { font-size: 13px; font-weight: 700; }
+    .task-action-sub   { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .task-action-badge { margin-left:auto; padding:3px 10px; border-radius:10px; font-size:11px; font-weight:700; background:var(--accent); color:#fff; flex-shrink:0; }
+
+    .draft-progress { display:flex; flex-direction:column; gap:8px; margin-top:16px; }
+    .draft-row { display:flex; align-items:center; gap:10px; padding:10px 13px; background:var(--card); border:1px solid var(--border-s); border-radius:9px; font-size:12px; }
+    .draft-status { width:18px; height:18px; border-radius:50%; flex-shrink:0; display:flex;align-items:center;justify-content:center; font-size:11px; }
+    .draft-status.queued  { background:var(--card-h); border:1px solid var(--border); }
+    .draft-status.working { background:rgba(99,102,241,.2); border:1px solid var(--accent); animation: dg-spin .6s linear infinite; }
+    .draft-status.done    { background:rgba(34,197,94,.15); border:1px solid rgba(34,197,94,.3); color:var(--green); }
+    .draft-status.err     { background:rgba(239,68,68,.1);  border:1px solid rgba(239,68,68,.2); color:var(--red); }
     .tasks-view {
       display: flex; flex-direction: column;
       width: 100%; overflow: hidden; padding: 28px 32px;
@@ -711,62 +732,84 @@
     .task-empty-txt  { font-size: 12px; line-height: 1.6; }
 
     /* ── Email Digest page ───────────────────────────────── */
-    .digest-view {
-      width: 100%; overflow-y: auto; padding: 28px 32px;
-      display: flex; flex-direction: column; gap: 24px;
-    }
+    .digest-view { width: 100%; overflow-y: auto; padding: 28px 32px; display: flex; flex-direction: column; }
     .digest-view::-webkit-scrollbar { width: 4px; }
     .digest-view::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-    .digest-stats {
-      display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+
+    .dg-prefs-panel {
+      background: var(--card); border: 1px solid var(--border-s); border-radius: 12px;
+      padding: 16px 18px; margin-bottom: 18px; display: none; flex-direction: column; gap: 14px;
     }
-    .digest-stat {
-      background: var(--card); border: 1px solid var(--border);
-      border-radius: 12px; padding: 16px;
+    .dg-prefs-panel.open { display: flex; }
+    .dg-prefs-title { font-size: 12px; font-weight: 700; margin-bottom: 2px; }
+    .dg-prefs-sub   { font-size: 11px; color: var(--muted); margin-bottom: 6px; line-height: 1.5; }
+    .dg-prefs-row   { display: flex; flex-direction: column; gap: 5px; }
+    .dg-prefs-label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+    .dg-prefs-input {
+      background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+      color: var(--text); font-size: 12px; padding: 8px 11px; font-family: inherit;
+      outline: none; transition: border-color .15s; resize: vertical;
     }
-    .digest-stat-num {
-      font-size: 32px; font-weight: 900; letter-spacing: -1px; line-height: 1;
-    }
-    .digest-stat-lbl { font-size: 11px; color: var(--muted); margin-top: 5px; }
-    .digest-section-title {
-      font-size: 13px; font-weight: 700; margin-bottom: 10px;
-      display: flex; align-items: center; gap: 8px;
-    }
-    .digest-section-title span {
-      font-size: 10px; font-weight: 600; padding: 2px 8px;
-      border-radius: 10px; background: var(--card);
-      border: 1px solid var(--border); color: var(--muted);
-    }
-    .digest-email-list { display: flex; flex-direction: column; gap: 6px; }
-    .digest-email-row {
-      display: flex; align-items: flex-start; gap: 12px;
-      padding: 12px 14px; background: var(--card);
-      border: 1px solid var(--border); border-radius: 10px;
-      transition: border-color .15s; cursor: default;
-    }
-    .digest-email-row:hover { border-color: #2a2a2a; }
-    .digest-email-dot {
-      width: 8px; height: 8px; border-radius: 50%;
-      background: var(--email-color); margin-top: 5px; flex-shrink: 0;
-    }
-    .digest-email-from { font-size: 12px; font-weight: 600; }
-    .digest-email-subj { font-size: 12px; color: var(--muted); margin-top: 2px; }
-    .digest-email-time { font-size: 11px; color: var(--dim); margin-left: auto; flex-shrink: 0; }
-    .digest-ai-summary {
-      background: var(--card); border: 1px solid var(--border);
-      border-radius: 12px; padding: 16px 18px;
-    }
-    .digest-ai-label {
-      font-size: 10px; font-weight: 700; letter-spacing: .1em;
-      text-transform: uppercase; color: var(--ai-color); margin-bottom: 8px;
-    }
-    .digest-ai-text { font-size: 13px; color: var(--muted); line-height: 1.7; }
-    .digest-connect-cta {
-      display: flex; flex-direction: column; align-items: center;
-      gap: 12px; padding: 48px 24px; text-align: center;
-      background: var(--card); border: 1px solid var(--border);
-      border-radius: 14px;
-    }
+    .dg-prefs-input:focus { border-color: var(--accent); }
+    .dg-prefs-save { align-self: flex-end; padding: 7px 16px; border-radius: 7px; font-size: 12px; font-weight: 700; background: var(--accent); border: none; color: #fff; cursor: pointer; transition: opacity .15s; }
+    .dg-prefs-save:hover { opacity: .82; }
+    .dg-pref-btn { padding: 4px 11px; border-radius: 20px; font-size: 11px; font-weight: 700; border: 1px solid var(--border); background: transparent; color: var(--muted); cursor: pointer; transition: all .15s; }
+    .dg-pref-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .dg-pref-btn.active { background: var(--accent-d); border-color: var(--accent); color: var(--accent); }
+    .dg-acct-tabs { display: flex; gap: 6px; margin-bottom: 14px; }
+    .dg-acct-tab  { display: flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--card); color: var(--muted); cursor: pointer; font-size: 12px; font-weight: 600; transition: all .15s; }
+    .dg-acct-tab:hover { border-color: var(--accent); color: var(--text); }
+    .dg-acct-tab.on { background: var(--accent-d); border-color: var(--accent); color: var(--text); }
+    .dg-topbar { display: flex; align-items: center; gap: 7px; margin-bottom: 18px; flex-wrap: wrap; }
+    .dg-title  { font-size: 20px; font-weight: 800; letter-spacing: -.4px; margin-right: 4px; }
+    .dg-pill   { padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; border: 1px solid var(--border); background: transparent; color: var(--muted); cursor: pointer; transition: all .15s; }
+    .dg-pill:hover { border-color: var(--accent); color: var(--text); }
+    .dg-pill.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .dg-refresh { width: 28px; height: 28px; border-radius: 7px; border: 1px solid var(--border); background: transparent; color: var(--muted); cursor: pointer; font-size: 15px; margin-left: auto; transition: all .15s; display:flex;align-items:center;justify-content:center; }
+    .dg-refresh:hover { border-color: var(--accent); color: var(--accent); }
+    .dg-refresh.spin { animation: dg-spin .6s linear infinite; }
+    @keyframes dg-spin { to { transform: rotate(360deg); } }
+
+    .dg-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 18px; }
+    .dg-stat  { background: var(--card); border: 1px solid var(--border-s); border-radius: 12px; padding: 14px 16px; position: relative; overflow: hidden; }
+    .dg-stat-bar { position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+    .dg-stat-num { font-size: 28px; font-weight: 900; letter-spacing: -1px; line-height: 1; margin-bottom: 3px; }
+    .dg-stat-lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+    .dg-stat-icon { position: absolute; bottom: 10px; right: 12px; font-size: 18px; opacity: .12; }
+
+    .dg-ai-card { background: var(--card); border: 1px solid var(--border-s); border-radius: 12px; padding: 15px 18px; margin-bottom: 18px; }
+    .dg-ai-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .dg-ai-icon { width: 22px; height: 22px; border-radius: 5px; background: var(--ai-color); display:flex;align-items:center;justify-content:center; font-size: 11px; color: #fff; flex-shrink:0; }
+    .dg-ai-label { font-size: 12px; font-weight: 700; }
+    .dg-ai-by { font-size: 11px; color: var(--muted); margin-left: auto; }
+    .dg-ai-btn { padding: 7px 14px; border-radius: 7px; font-size: 12px; font-weight: 700; background: var(--ai-color); border: none; color: #fff; cursor: pointer; transition: opacity .15s; }
+    .dg-ai-btn:hover { opacity: .82; }
+    .dg-ai-btn:disabled { opacity: .45; cursor: not-allowed; }
+    .dg-ai-out { margin-top: 10px; font-size: 12px; color: var(--muted); line-height: 1.7; }
+    .dg-urgent-list { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
+    .dg-urgent-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px; background: rgba(239,68,68,.07); border: 1px solid rgba(239,68,68,.15); border-radius: 8px; font-size: 11px; }
+    .dg-urgent-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--red); flex-shrink: 0; }
+    .dg-priority-box { padding: 8px 10px; background: rgba(99,102,241,.08); border: 1px solid rgba(99,102,241,.2); border-radius: 7px; font-size: 11px; color: var(--text); margin-bottom: 6px; }
+
+    .dg-section { margin-bottom: 20px; }
+    .dg-sec-head { display: flex; align-items: center; gap: 7px; margin-bottom: 8px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
+    .dg-sec-count { padding: 1px 7px; border-radius: 8px; font-size: 10px; font-weight: 700; background: var(--card); border: 1px solid var(--border); }
+    .dg-emails { display: flex; flex-direction: column; gap: 4px; }
+    .dg-row { display: flex; align-items: flex-start; gap: 10px; background: var(--card); border: 1px solid var(--border-s); border-radius: 10px; padding: 10px 12px; transition: border-color .15s, background .15s; }
+    .dg-row:hover { border-color: var(--border); background: var(--card-h); }
+    .dg-av { width: 30px; height: 30px; border-radius: 7px; flex-shrink: 0; display:flex;align-items:center;justify-content:center; font-size: 12px; font-weight: 800; color: #fff; }
+    .dg-body { flex: 1; min-width: 0; }
+    .dg-sender-line { display: flex; align-items: center; gap: 5px; margin-bottom: 1px; }
+    .dg-sender { font-size: 12px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
+    .dg-badge-imp { font-size: 9px; padding: 1px 5px; border-radius: 3px; font-weight: 700; flex-shrink: 0; background: rgba(249,115,22,.15); color: var(--orange); }
+    .dg-badge-old { font-size: 9px; padding: 1px 5px; border-radius: 3px; font-weight: 700; flex-shrink: 0; background: rgba(239,68,68,.12); color: var(--red); }
+    .dg-subj { font-size: 12px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 1px; }
+    .dg-snip { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .dg-time { font-size: 11px; color: var(--dim); flex-shrink: 0; padding-top: 1px; }
+    .dg-empty { font-size: 12px; color: var(--dim); padding: 10px 0 4px; }
+    .dg-skel { height: 52px; border-radius: 10px; margin-bottom: 4px; background: linear-gradient(90deg, var(--card) 25%, var(--card-h) 50%, var(--card) 75%); background-size: 200% 100%; animation: dg-shim 1.2s infinite; }
+    @keyframes dg-shim { to { background-position: -200% 0; } }
+    .digest-connect-cta { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 48px 24px; text-align: center; background: var(--card); border: 1px solid var(--border); border-radius: 14px; }
     .digest-connect-icon { font-size: 40px; opacity: .3; }
     .digest-connect-title { font-size: 16px; font-weight: 700; }
     .digest-connect-desc { font-size: 13px; color: var(--muted); max-width: 320px; line-height: 1.6; }
@@ -1120,6 +1163,12 @@
 const SUPABASE_URL  = 'https://xcxbhmsrcbhmfbqqqfaf.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhjeGJobXNyY2JobWZicXFxZmFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzODA2ODcsImV4cCI6MjA5NDk1NjY4N30.2BnmUVsFxKDehpbIKR1gPYqSpTkm3xn-xF0OytzgfYg';
 
+// ── OAuth App Config (developer fills these in) ───────────────────
+// Google: console.cloud.google.com → Credentials → OAuth 2.0 Client ID (Web)
+const GOOGLE_CLIENT_ID    = '395196249030-63p6prvhga92a7bgbsu9698v8lg7h8kd.apps.googleusercontent.com';
+// Microsoft: portal.azure.com → App registrations → your app → Application (client) ID
+const MICROSOFT_CLIENT_ID = 'afdb03a3-43b1-4e43-9662-3d0f0cc72406';
+
 let _sb = null;
 function getSB() {
   if (!_sb && SUPABASE_URL !== 'YOUR_SUPABASE_URL') {
@@ -1174,8 +1223,8 @@ async function sbSignOut() {
 
 // ── Config ────────────────────────────────────────────────────────
 const DEFAULTS = {
-  gmail:      { connected: false, email: '', clientId: '' },
-  outlook:    { connected: false, email: '', clientId: '', tenantId: '' },
+  gmail:      { connected: false, email: '', accessToken: '', tokenExpiry: 0 },
+  outlook:    { connected: false, email: '', accessToken: '', tokenExpiry: 0 },
   googleCal:  { connected: false },
   outlookCal: { connected: false },
   ai: {
@@ -1188,6 +1237,10 @@ const DEFAULTS = {
   general: { notifications: true, calendarReminders: true, autoDetectMeetings: true, emailDays: 7 },
   theme:   { accent: '' },
   dashboard: { widgets: ['unread','upcoming'] },
+  digest: {
+    gmail:   { userContext: '', vipSenders: '', lowPriority: '', filterNoise: true },
+    outlook: { userContext: '', vipSenders: '', lowPriority: '', filterNoise: true },
+  },
   tasks: []
 };
 
@@ -1258,7 +1311,16 @@ function _deepMerge(base, over) {
 function loadCfg() {
   const p = getActiveProfile();
   const stored = (p && p.config) ? p.config : null;
-  return stored ? _deepMerge(structuredClone(DEFAULTS), stored) : structuredClone(DEFAULTS);
+  const cfg = stored ? _deepMerge(structuredClone(DEFAULTS), stored) : structuredClone(DEFAULTS);
+  // Migrate old flat digest format {userContext, vipSenders, ...} to per-account
+  if (cfg.digest && typeof cfg.digest.userContext === 'string') {
+    const old = cfg.digest;
+    cfg.digest = {
+      gmail:   { userContext: old.userContext || '', vipSenders: old.vipSenders || '', lowPriority: old.lowPriority || '', filterNoise: old.filterNoise !== false },
+      outlook: { userContext: '', vipSenders: '', lowPriority: '', filterNoise: true },
+    };
+  }
+  return cfg;
 }
 function saveCfg(cfg) {
   const s = getPStore();
@@ -1294,11 +1356,13 @@ let currentView = 'home';
 
 function goSettings() {
   currentView = 'settings';
+  _stopUnreadRefresh();
   document.getElementById('searchWrap').style.display = 'none';
   renderSettings('accounts');
 }
 function goHome() {
   currentView = 'home';
+  _stopUnreadRefresh();
   document.getElementById('searchWrap').style.display = '';
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   const h = document.getElementById('homeNavItem');
@@ -1307,6 +1371,7 @@ function goHome() {
 }
 function goDashboard() {
   currentView = 'dashboard';
+  _stopUnreadRefresh();
   document.getElementById('searchWrap').style.display = '';
   renderDashboard();
 }
@@ -1421,8 +1486,8 @@ function _wUnread() {
   const hasEmail = CFG.gmail.connected || CFG.outlook.connected;
   const days = (CFG.general && CFG.general.emailDays) ? CFG.general.emailDays : 7;
   const body = hasEmail
-    ? '<div class="widget-stat-big" style="color:var(--email-color)">—</div>' +
-      '<div class="widget-stat-label">unread emails &nbsp;·&nbsp; syncing soon</div>'
+    ? '<div class="widget-stat-big" style="color:var(--email-color)" id="w-unread-count">…</div>' +
+      '<div class="widget-stat-label" id="w-unread-label">loading unread count…</div>'
     : '<div style="font-size:12px;color:var(--dim);line-height:1.7">' +
         'No email account connected yet.<br>' +
         '<span style="color:var(--accent);cursor:pointer" onclick="goSettings()">Connect one in Settings &#x2192;</span>' +
@@ -1433,6 +1498,7 @@ function _wUnread() {
   const footer = '<span class="widget-footer-label">Showing past</span>' +
     '<select onchange="setEmailDays(+this.value)">' + opts + '</select>' +
     '<span class="widget-footer-label">to today</span>';
+  if (hasEmail) setTimeout(() => _refreshUnreadCount(), 200);
   return _buildWidget('unread',
     '<span style="color:var(--email-color)">&#128231;</span>', 'Unread Emails', body, footer);
 }
@@ -1440,11 +1506,36 @@ function _wUnread() {
 function _wUpcoming() {
   const hasCal = CFG.googleCal.connected || CFG.outlookCal.connected;
   const body = hasCal
-    ? '<div style="font-size:12px;color:var(--dim);line-height:1.7">Calendar sync coming soon.<br>Your events will appear here.</div>'
+    ? '<div id="w-upcoming-events" style="font-size:12px;color:var(--muted)">Loading events…</div>'
     : '<div style="font-size:12px;color:var(--dim);line-height:1.7">' +
         'No calendar connected.<br>' +
         '<span style="color:var(--accent);cursor:pointer" onclick="goSettings()">Add one in Settings &#x2192;</span>' +
       '</div>';
+  if (hasCal) {
+    setTimeout(async () => {
+      const el = document.getElementById('w-upcoming-events');
+      if (!el) return;
+      try {
+        const events = CFG.googleCal.connected ? await googleCalGetEvents(5) : await outlookCalGetEvents(5);
+        if (!events.length) { el.textContent = 'No upcoming events in the next 7 days.'; return; }
+        el.innerHTML = events.map(ev => {
+          const title = ev.summary || ev.subject || '(No title)';
+          const startRaw = ev.start ? (ev.start.dateTime || ev.start.date) : ev.start;
+          const start = startRaw ? new Date(startRaw) : null;
+          const timeStr = start
+            ? start.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', hour:'numeric', minute:'2-digit' })
+            : '';
+          return '<div style="padding:5px 0;border-bottom:1px solid var(--border-s)">' +
+            '<div style="font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + title + '</div>' +
+            '<div style="font-size:11px;color:var(--muted)">' + timeStr + '</div>' +
+          '</div>';
+        }).join('');
+      } catch(e) {
+        el.textContent = 'Could not load events · ' + e.message;
+        el.style.color = 'var(--red)';
+      }
+    }, 150);
+  }
   return _buildWidget('upcoming',
     '<span style="color:var(--cal-color)">&#128197;</span>', 'Upcoming Events', body, '');
 }
@@ -1492,10 +1583,44 @@ async function homeAiSend() {
   }
 }
 
+async function _refreshUnreadCount() {
+  try {
+    const raw   = CFG.gmail.connected ? await gmailGetUnread() : await outlookGetUnread();
+    const count = raw;
+    const numEl = document.getElementById('w-unread-count');
+    const lblEl = document.getElementById('w-unread-label');
+    const dEl   = document.getElementById('digestUnread');
+    if (numEl) numEl.textContent = count;
+    if (dEl)   dEl.textContent   = count;
+    if (lblEl) {
+      const days = (CFG.general && CFG.general.emailDays) || 7;
+      lblEl.textContent = `unread threads · last ${days} days`;
+      lblEl.style.color = '';
+    }
+  } catch(e) {
+    const numEl = document.getElementById('w-unread-count');
+    const lblEl = document.getElementById('w-unread-label');
+    if (numEl) numEl.textContent = '—';
+    if (lblEl) { lblEl.textContent = 'could not load · ' + e.message; lblEl.style.color = 'var(--red)'; }
+  }
+}
+
+let _unreadRefreshInterval = null;
+function _startUnreadRefresh() {
+  _stopUnreadRefresh();
+  _unreadRefreshInterval = setInterval(() => {
+    if (CFG.gmail.connected || CFG.outlook.connected) _refreshUnreadCount();
+  }, 60000);
+}
+function _stopUnreadRefresh() {
+  if (_unreadRefreshInterval) { clearInterval(_unreadRefreshInterval); _unreadRefreshInterval = null; }
+}
+
 function setEmailDays(d) {
   if (!CFG.general) CFG.general = {};
   CFG.general.emailDays = d;
   saveCfg(CFG);
+  _refreshUnreadCount();
 }
 
 function buildActionsPanel() {
@@ -1540,20 +1665,8 @@ function buildActionsPanel() {
 }
 
 function _getSampleActions() {
-  const hasEmail = CFG.gmail.connected || CFG.outlook.connected;
-  const hasAI    = !!CFG.ai.active;
-  if (!hasEmail) return [];
-  var items = [
-    { type: 'meeting', label: 'Meeting Detected',
-      text: 'Email from Sarah: "Lunch next Thursday at noon — does that work for you?"' },
-    { type: 'urgent',  label: 'Needs Reply',
-      text: '3 emails flagged as awaiting your response (oldest: 2 days ago).' },
-  ];
-  if (hasAI) items.push({
-    type: 'ai', label: 'AI Draft Ready',
-    text: 'AI can draft a reply to the project update from Mike. Review before sending.',
-  });
-  return items;
+  // Returns empty — real actions will be populated once email reading is wired up
+  return [];
 }
 
 function dismissAction(i) {
@@ -1599,22 +1712,121 @@ function buildAIMiniPanel() {
 }
 
 // ── AI Engine ─────────────────────────────────────────────────────
-const AI_SYSTEM = 'You are an AI assistant built into MailCal, a smart email and calendar manager. ' +
-  'Help users summarize emails, draft replies, detect meetings, manage tasks, and stay on top of their inbox. ' +
-  'Be concise and professional. When drafting emails format them with a greeting and sign-off.';
+const AI_SYSTEM =
+  'You are an AI assistant built into MailCal, a personal email and calendar manager. ' +
+  'Every message includes a LIVE CONTEXT block with real data from the user\'s accounts — ' +
+  'use it to answer questions accurately instead of guessing. ' +
+  'If asked how many unread emails, how many tasks, or what\'s on the calendar, read the context and give the exact answer. ' +
+  'Keep responses short and direct. When drafting emails include a greeting and sign-off. ' +
+  'If the user asks to add a task, reply with exactly: TASK_ADD: [task text here] on its own line, then your normal reply.';
 
 let _chatHistory = [];
+let _aiCtxCache  = null;
+let _aiCtxAge    = 0;
+const AI_CTX_TTL = 5 * 60 * 1000;
 
-async function callAI(userText) {
+async function buildAIContext(force) {
+  if (!force && _aiCtxCache && (Date.now() - _aiCtxAge) < AI_CTX_TTL) return _aiCtxCache;
+
+  const p    = getActiveProfile();
+  const name = p ? p.name : 'the user';
+  const now  = new Date();
+  const lines = [
+    '=== LIVE CONTEXT ===',
+    'User: ' + name,
+    'Date: ' + now.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' }),
+    'Time: ' + now.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' }),
+    '',
+  ];
+
+  // Email
+  if (CFG.gmail.connected) {
+    lines.push('Gmail: connected (' + (CFG.gmail.email || 'unknown') + ')');
+    try {
+      const cnt  = await gmailGetUnread();
+      const days = (CFG.general && CFG.general.emailDays) || 7;
+      lines.push('Unread email threads (last ' + days + ' days): ' + cnt);
+    } catch(_) { lines.push('Unread count: could not fetch'); }
+  } else { lines.push('Gmail: not connected'); }
+
+  if (CFG.outlook.connected) {
+    lines.push('Outlook: connected (' + (CFG.outlook.email || 'unknown') + ')');
+    try { lines.push('Outlook unread: ' + (await outlookGetUnread())); } catch(_) {}
+  }
+
+  // Calendar
+  if (CFG.googleCal.connected || CFG.outlookCal.connected) {
+    try {
+      const evts = CFG.googleCal.connected ? await googleCalGetEvents(10) : await outlookCalGetEvents(10);
+      const todayS = new Date(); todayS.setHours(0,0,0,0);
+      const todayE = new Date(); todayE.setHours(23,59,59,999);
+      const todays = evts.filter(e => { const d = new Date((e.start||{}).dateTime||(e.start||{}).date||0); return d >= todayS && d <= todayE; });
+      const future = evts.filter(e => { const d = new Date((e.start||{}).dateTime||(e.start||{}).date||0); return d > todayE; }).slice(0,5);
+      lines.push('');
+      lines.push("Today's calendar (" + todays.length + " events):");
+      if (todays.length) todays.forEach(e => {
+        const t = new Date((e.start||{}).dateTime||(e.start||{}).date||0);
+        lines.push('  - ' + t.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) + ': ' + (e.summary||e.subject||'Untitled'));
+      }); else lines.push('  - No events today');
+      if (future.length) {
+        lines.push('Upcoming events:');
+        future.forEach(e => {
+          const t = new Date((e.start||{}).dateTime||(e.start||{}).date||0);
+          lines.push('  - ' + t.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}) + ': ' + (e.summary||e.subject||'Untitled'));
+        });
+      }
+    } catch(_) { lines.push('Calendar: could not fetch'); }
+  } else { lines.push('Calendar: not connected'); }
+
+  // Tasks
+  const tasks = CFG.tasks || [];
+  lines.push('');
+  lines.push('Tasks (' + tasks.length + ' total):');
+  if (tasks.length) tasks.slice(0,10).forEach(t => lines.push('  - ' + (t.text || t)));
+  else lines.push('  - No tasks');
+
+  // User preferences
+  const dp = CFG.digest || {};
+  if (dp.userContext || dp.vipSenders || dp.lowPriority) {
+    lines.push('', 'User email preferences:');
+    if (dp.userContext) lines.push('  ' + dp.userContext);
+    if (dp.vipSenders)  lines.push('  VIP senders: ' + dp.vipSenders);
+    if (dp.lowPriority) lines.push('  Low priority: ' + dp.lowPriority);
+  }
+
+  lines.push('=== END CONTEXT ===');
+  _aiCtxCache = lines.join('\n');
+  _aiCtxAge   = Date.now();
+  return _aiCtxCache;
+}
+
+async function callAI(userText, _skipCtx) {
   const provider = CFG.ai.active;
   _chatHistory.push({ role: 'user', content: userText });
-  const messages = [{ role: 'system', content: AI_SYSTEM }, ..._chatHistory];
+
+  let sys = AI_SYSTEM;
+  if (!_skipCtx) {
+    try { sys = AI_SYSTEM + '\n\n' + (await buildAIContext()); } catch(_) {}
+  }
+
+  const messages = [{ role: 'system', content: sys }, ..._chatHistory];
   let reply;
-  if (provider === 'ollama')  reply = await _callOllama(messages);
+  if      (provider === 'ollama')  reply = await _callOllama(messages);
   else if (provider === 'gemini')  reply = await _callGemini(messages);
   else if (provider === 'openai')  reply = await _callOpenAI(messages);
   else if (provider === 'claude')  reply = await _callClaude(messages);
   else throw new Error('No AI provider selected. Go to Settings → AI Assistant.');
+
+  // Auto-add task if AI includes TASK_ADD directive
+  const taskMatch = reply.match(/^TASK_ADD:\s*(.+)$/m);
+  if (taskMatch) {
+    const taskText = taskMatch[1].trim();
+    if (!CFG.tasks) CFG.tasks = [];
+    CFG.tasks.push({ text: taskText, done: false, created: Date.now() });
+    saveCfg(CFG);
+    reply = reply.replace(/^TASK_ADD:.+\n?/m, '').trim() + '\n\n✓ Added to your tasks: "' + taskText + '"';
+  }
+
   _chatHistory.push({ role: 'assistant', content: reply });
   return reply;
 }
@@ -1727,6 +1939,7 @@ function renderHome() {
         buildAIMiniPanel() +
       '</div>' +
     '</div>';
+  if (CFG.gmail.connected || CFG.outlook.connected) _startUnreadRefresh();
 }
 
 // ── Dashboard ─────────────────────────────────────────────────────
@@ -1762,9 +1975,20 @@ function renderDashboard() {
         No calendar connected — <span style="color:var(--accent);cursor:pointer" onclick="goSettings()">add one</span>
        </div>`;
 
+  const hasEmailOrCal = hasEmail || CFG.googleCal.connected || CFG.outlookCal.connected;
+  const aiGreeting = hasEmailOrCal
+    ? 'Hi! I can see your connected accounts. Ask me anything — "how many unread emails?", "what\'s on my calendar today?", "add a task", or anything else.'
+    : 'Hi! I\'m ready to help. Connect your email and calendar in Settings so I can give you personalized answers.';
+
   const aiChatHTML = hasAI
-    ? `<div class="chat-msgs" id="chatMsgs">
-        <div class="bubble ai">Hi! I'm ready to help. Connect your email and calendar to get started.</div>
+    ? `<div style="display:flex;align-items:center;gap:6px;padding:6px 0 4px;flex-shrink:0">
+         <span style="font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.06em">AI Assistant</span>
+         <span style="font-size:10px;color:var(--dim)">·</span>
+         <span style="font-size:10px;color:var(--muted)">${CFG.ai.active}</span>
+         <button onclick="refreshAIContext()" title="Refresh my data" style="margin-left:auto;padding:2px 8px;font-size:10px;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer" id="aiCtxBtn">↺ Refresh data</button>
+       </div>
+       <div class="chat-msgs" id="chatMsgs">
+        <div class="bubble ai">${aiGreeting}</div>
        </div>
        <div class="chat-input-row">
          <textarea class="chat-inp" id="chatInp" placeholder="Ask anything…" rows="1"
@@ -1839,9 +2063,113 @@ function addBubble(text, who) {
   msgs.scrollTop = msgs.scrollHeight;
 }
 
+// ── Gmail Draft Creation ──────────────────────────────────────────
+async function createGmailDraft(email, replyBody) {
+  const token = await getGoogleToken();
+  const myEmail = CFG.gmail.email || 'me';
+  const subject = email.subject.match(/^re:/i) ? email.subject : 'Re: ' + email.subject;
+  const raw = [
+    'From: ' + myEmail,
+    'To: ' + (email.fromEmail || email.fromName),
+    'Subject: ' + subject,
+    'Content-Type: text/plain; charset=UTF-8',
+    '',
+    replyBody
+  ].join('\r\n');
+  // base64url encode
+  const encoded = btoa(unescape(encodeURIComponent(raw)))
+    .replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+  const body = { message: { raw: encoded } };
+  if (email.threadId) body.message.threadId = email.threadId;
+  return fetch('https://gmail.googleapis.com/gmail/v1/users/me/drafts', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  }).then(r => r.json());
+}
+
+async function draftReplies() {
+  if (!CFG.gmail.connected) { alert('Connect Gmail first in Settings.'); return; }
+
+  // Only use emails the AI specifically identified — never fetch random emails
+  if (!_aiReplyEmails) {
+    alert('Run AI Analysis in Email Digest first so the AI can identify which emails need replies.');
+    return;
+  }
+  if (_aiReplyEmails.length === 0) {
+    alert('No emails need a reply right now — the AI found nothing to draft.');
+    return;
+  }
+
+  const emails = _aiReplyEmails;
+
+  const container = document.getElementById('content');
+  container.innerHTML =
+    '<div class="tasks-view">' +
+      '<div class="page-title">Draft Email Replies</div>' +
+      '<div class="page-sub" id="draftSub">Drafting ' + emails.length + ' AI-identified repl' + (emails.length === 1 ? 'y' : 'ies') + '…</div>' +
+      '<div class="draft-progress" id="draftProgress"></div>' +
+      '<div id="draftResult" style="margin-top:16px"></div>' +
+    '</div>';
+
+  const prog = document.getElementById('draftProgress');
+  document.getElementById('draftSub').textContent =
+    (fromAI ? 'AI identified ' : 'Found ') + emails.length + ' email' + (emails.length > 1 ? 's' : '') + ' needing a reply. Drafting now…';
+
+  // Render rows in queued state
+  prog.innerHTML = emails.map((e, i) =>
+    '<div class="draft-row" id="drow_' + i + '">' +
+      '<div class="draft-status queued" id="dst_' + i + '"></div>' +
+      '<div style="flex:1;min-width:0">' +
+        '<div style="font-weight:700;font-size:12px">' + e.fromName + '</div>' +
+        '<div style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + e.subject + '</div>' +
+      '</div>' +
+      '<div style="font-size:11px;color:var(--dim)">' + e.time + '</div>' +
+    '</div>'
+  ).join('');
+
+  let doneCount = 0, errCount = 0;
+  const prefs = CFG.digest || {};
+
+  for (let i = 0; i < emails.length; i++) {
+    const e = emails[i];
+    const stEl = document.getElementById('dst_' + i);
+    if (stEl) { stEl.className = 'draft-status working'; stEl.textContent = ''; }
+
+    try {
+      const prefHint = prefs.userContext ? '\n\nContext about the sender: ' + prefs.userContext : '';
+      const prompt = 'Draft a professional, concise email reply to this message.' + prefHint +
+        '\n\nFrom: ' + e.fromName + '\nSubject: ' + e.subject + '\nPreview: ' + e.snippet +
+        '\n\nWrite ONLY the email body — no subject line, no "Here is a draft" preamble. Sign off with ' +
+        (getActiveProfile() ? getActiveProfile().name : 'me') + '.';
+      const reply = await callAI(prompt, true);
+      await createGmailDraft(e, reply);
+      if (stEl) { stEl.className = 'draft-status done'; stEl.textContent = '✓'; }
+      doneCount++;
+    } catch(err) {
+      if (stEl) { stEl.className = 'draft-status err'; stEl.textContent = '✗'; }
+      const row = document.getElementById('drow_' + i);
+      if (row) row.insertAdjacentHTML('beforeend', '<div style="font-size:10px;color:var(--red);margin-top:3px">' + err.message + '</div>');
+      errCount++;
+    }
+  }
+
+  const res = document.getElementById('draftResult');
+  if (res) {
+    res.innerHTML =
+      '<div style="padding:14px 16px;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.2);border-radius:10px">' +
+        '<div style="font-size:13px;font-weight:700;color:var(--green);margin-bottom:4px">✓ ' + doneCount + ' draft' + (doneCount !== 1 ? 's' : '') + ' saved to Gmail</div>' +
+        '<div style="font-size:12px;color:var(--muted)">Open Gmail → Drafts to review and send. Each draft is pre-addressed and ready — just read it over before hitting send.</div>' +
+        (errCount ? '<div style="font-size:11px;color:var(--red);margin-top:6px">' + errCount + ' failed — check errors above.</div>' : '') +
+      '</div>' +
+      '<button class="task-add-btn" style="margin-top:12px" onclick="renderTasks()">← Back to Tasks</button>';
+  }
+}
+
 // ── Tasks ─────────────────────────────────────────────────────────
 function goTasks() {
   currentView = 'tasks';
+  _stopUnreadRefresh();
   document.getElementById('searchWrap').style.display = '';
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   const el = document.getElementById('tasksNavItem');
@@ -1871,10 +2199,30 @@ function renderTasks() {
       '<div class="task-list">' + done.map(taskRow).join('') + '</div>'
     : '';
 
+  const replyCount = _aiReplyEmails ? _aiReplyEmails.length : null;
+  const draftCard = CFG.gmail.connected
+    ? '<div class="task-action-card" onclick="draftReplies()">' +
+        '<div class="task-action-icon">✉</div>' +
+        '<div style="flex:1">' +
+          '<div class="task-action-title">Draft Email Replies</div>' +
+          '<div class="task-action-sub">' +
+            (replyCount === null
+              ? 'Run AI Analysis in Email Digest first to identify which emails need replies'
+              : replyCount === 0
+                ? 'No emails need a reply right now — check back later'
+                : 'AI found ' + replyCount + ' email' + (replyCount !== 1 ? 's' : '') + ' needing a reply — click to draft them all'
+            ) +
+          '</div>' +
+        '</div>' +
+        (replyCount ? '<div class="task-action-badge">' + replyCount + '</div>' : '') +
+      '</div>'
+    : '';
+
   document.getElementById('content').innerHTML =
     '<div class="tasks-view">' +
       '<div class="page-title">Tasks</div>' +
-      '<div class="page-sub">Track what needs to get done. Soon: auto-detected from your emails.</div>' +
+      '<div class="page-sub">Track what needs to get done.</div>' +
+      draftCard +
       '<div class="task-input-row">' +
         '<input class="task-input" id="taskInp" placeholder="Add a task…"' +
         ' onkeydown="if(event.key===\'Enter\')addTask()">' +
@@ -1925,13 +2273,254 @@ function updateTasksBadge() {
 }
 
 // ── Email Digest ──────────────────────────────────────────────────
+let _digestDays    = 7;
+let _digestAccount = 'gmail'; // 'gmail' or 'outlook'
+let _aiReplyEmails = null; // emails AI identified as needing reply
+
+function _getDigestPrefs() {
+  return (CFG.digest && CFG.digest[_digestAccount]) || {};
+}
+
+function digestSetAccount(acct) {
+  _digestAccount = acct;
+  _aiReplyEmails = null;
+  renderDigest();
+}
+
 function goDigest() {
   currentView = 'digest';
+  _stopUnreadRefresh();
   document.getElementById('searchWrap').style.display = '';
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   const el = document.getElementById('digestNavItem');
   if (el) el.classList.add('active');
+  // Default to whichever account is connected; prefer Gmail
+  if (!CFG.gmail.connected && CFG.outlook.connected) _digestAccount = 'outlook';
+  else _digestAccount = 'gmail';
   renderDigest();
+}
+
+function digestSetDays(d) { _digestDays = d; renderDigest(); }
+
+function toggleDigestPrefs() {
+  const panel = document.getElementById('dgPrefsPanel');
+  const btn   = document.getElementById('dgPrefBtn');
+  if (!panel) return;
+  const open = panel.classList.toggle('open');
+  const _dp = _getDigestPrefs();
+  if (btn) btn.textContent = open ? '⚙ Preferences ▲' : ('⚙ Preferences' + ((_dp.userContext || _dp.vipSenders || _dp.lowPriority) ? ' ●' : ''));
+}
+
+function toggleNoiseFilter(el) {
+  el.classList.toggle('on');
+}
+
+function saveDigestPrefs() {
+  if (!CFG.digest) CFG.digest = {};
+  if (!CFG.digest[_digestAccount]) CFG.digest[_digestAccount] = {};
+  const acct = CFG.digest[_digestAccount];
+  acct.userContext = (document.getElementById('dpUserCtx') || {}).value || '';
+  acct.vipSenders  = (document.getElementById('dpVip')     || {}).value || '';
+  acct.lowPriority = (document.getElementById('dpLow')     || {}).value || '';
+  const noiseEl = document.getElementById('dpNoiseToggle');
+  acct.filterNoise = noiseEl ? noiseEl.classList.contains('on') : true;
+  saveCfg(CFG);
+  _aiCtxCache = null;
+  const save = document.querySelector('.dg-prefs-save');
+  if (save) { save.textContent = '✓ Saved!'; setTimeout(() => { if (save) save.textContent = 'Save Preferences'; }, 1500); }
+  const btn = document.getElementById('dgPrefBtn');
+  if (btn) btn.classList.add('active');
+  // Reload data with new filters
+  setTimeout(() => _loadDigestData(), 200);
+}
+
+const _DG_COLORS = ['#6366f1','#8b5cf6','#ec4899','#f97316','#22c55e','#06b6d4','#ef4444','#d97706'];
+function _dgColor(name) {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (name.charCodeAt(i) + ((h << 5) - h)) | 0;
+  return _DG_COLORS[Math.abs(h) % _DG_COLORS.length];
+}
+function _fmtTime(dateStr) {
+  if (!dateStr) return '';
+  const d  = new Date(dateStr);
+  const dh = (Date.now() - d) / 3600000;
+  if (dh < 1)  return Math.round(dh * 60) + 'm ago';
+  if (dh < 24) return Math.round(dh) + 'h ago';
+  if (dh < 48) return 'Yesterday';
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+async function _gmailFetch(path, token) {
+  return fetch('https://gmail.googleapis.com/gmail/v1/users/me/' + path,
+    { headers: { Authorization: 'Bearer ' + token } }).then(r => r.json());
+}
+
+// Returns Gmail exclusion string for promotions/newsletters/noise
+function _noiseFilter() {
+  const dp = (CFG.digest && CFG.digest.gmail) ? CFG.digest.gmail : {};
+  if (dp.filterNoise === false) return '';
+  return ' -category:promotions -category:social -category:updates -category:forums';
+}
+
+async function gmailGetDigestStats(days) {
+  const token = await getGoogleToken();
+  const ap   = (days === 'all' || days >= 90) ? '' : (' after:' + Math.floor((Date.now() - days * 86400000) / 1000));
+  const tdAp = ' after:' + Math.floor((Date.now() - 86400000) / 1000);
+  const nf   = _noiseFilter();
+  const q    = s => 'threads?q=' + encodeURIComponent(s) + '&maxResults=500';
+  const [a, b, c, d] = await Promise.all([
+    _gmailFetch(q('is:unread in:inbox' + nf + ap),                                                                    token),
+    _gmailFetch(q('is:unread is:important in:inbox' + nf + ap),                                                       token),
+    _gmailFetch('threads?q=' + encodeURIComponent('is:unread is:important in:inbox' + nf + ap) + '&maxResults=200', token),
+    _gmailFetch('threads?q=' + encodeURIComponent('in:inbox' + nf + tdAp)               + '&maxResults=200', token),
+  ]);
+  const cnt = r => { const n = (r.threads || []).length; return r.nextPageToken ? n + '+' : n; };
+  return { unread: cnt(a), important: cnt(b), needsReply: cnt(c), today: cnt(d) };
+}
+
+async function gmailListUnread(query, max) {
+  const token = await getGoogleToken();
+  const list  = await _gmailFetch('messages?q=' + encodeURIComponent(query) + '&maxResults=' + (max || 15), token);
+  const msgs  = list.messages || [];
+  if (!msgs.length) return [];
+  const details = await Promise.all(msgs.map(m =>
+    _gmailFetch('messages/' + m.id + '?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date', token)
+  ));
+  return details.map(msg => {
+    const hdrs = (msg.payload && msg.payload.headers) || [];
+    const h    = n => (hdrs.find(x => x.name.toLowerCase() === n) || {}).value || '';
+    const raw  = h('from');
+    const nm   = raw.match(/^"?([^"<]+)"?\s*</);
+    const fromName = (nm ? nm[1].trim() : raw.replace(/<.*>/, '').trim()) || raw;
+    const dateObj  = h('date') ? new Date(h('date')) : null;
+    let time = '';
+    if (dateObj) {
+      const dh = (Date.now() - dateObj) / 3600000;
+      if (dh < 1) time = Math.round(dh * 60) + 'm';
+      else if (dh < 24) time = Math.round(dh) + 'h';
+      else if (dh < 48) time = 'Yesterday';
+      else time = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
+    const lbl = msg.labelIds || [];
+    const emailMatch = raw.match(/<(.+?)>/);
+    const fromEmail = emailMatch ? emailMatch[1] : raw.trim();
+    return {
+      id: msg.id, threadId: msg.threadId, fromName, fromEmail,
+      initial: fromName.charAt(0).toUpperCase(),
+      color: _dgColor(fromName),
+      subject: h('subject') || '(No subject)',
+      snippet: (msg.snippet || '').replace(/&amp;/g,'&').replace(/&#(\d+);/g,(_,n)=>String.fromCharCode(+n)),
+      time,
+      ageH: dateObj ? (Date.now() - dateObj) / 3600000 : 0,
+      isImportant: lbl.includes('IMPORTANT'),
+    };
+  });
+}
+
+function _dgRow(m) {
+  return '<div class="dg-row">' +
+    '<div class="dg-av" style="background:' + m.color + '">' + m.initial + '</div>' +
+    '<div class="dg-body">' +
+      '<div class="dg-sender-line">' +
+        '<span class="dg-sender">' + m.fromName + '</span>' +
+        (m.isImportant ? '<span class="dg-badge-imp">IMPORTANT</span>' : '') +
+        (m.ageH > 48   ? '<span class="dg-badge-old">WAITING</span>'   : '') +
+      '</div>' +
+      '<div class="dg-subj">' + m.subject + '</div>' +
+      '<div class="dg-snip">' + m.snippet + '</div>' +
+    '</div>' +
+    '<div class="dg-time">' + m.time + '</div>' +
+  '</div>';
+}
+
+function _dgSection(icon, title, color, count, body) {
+  return '<div class="dg-section">' +
+    '<div class="dg-sec-head"><span style="color:' + color + '">' + icon + '</span> ' + title +
+      (count != null && count !== 0 ? ' <span class="dg-sec-count" style="color:' + color + '">' + count + '</span>' : '') +
+    '</div>' +
+    '<div class="dg-emails">' + body + '</div></div>';
+}
+
+function _dgSkel(n) { return Array(n).fill('<div class="dg-skel"></div>').join(''); }
+
+async function digestAnalyzeAI() {
+  if (!CFG.ai.active) { alert('Set up an AI provider in Settings first.'); return; }
+  const btn = document.getElementById('dgAiBtn');
+  const out = document.getElementById('dgAiOut');
+  if (!btn || !out) return;
+  btn.disabled = true; btn.textContent = '✦ Analyzing…';
+  out.innerHTML = '<div style="color:var(--muted);font-size:12px">Reading your recent emails…</div>';
+  try {
+    const days = _digestDays === 'all' ? 30 : _digestDays;
+    const ap   = ' after:' + Math.floor((Date.now() - days * 86400000) / 1000);
+    let msgs;
+    if (_digestAccount === 'outlook') {
+      const since = new Date(Date.now() - days * 86400000).toISOString();
+      msgs = await outlookListMessages({ isRead: false, since }, 20);
+    } else {
+      msgs = await gmailListUnread('is:unread in:inbox' + _noiseFilter() + ap, 20);
+    }
+    if (!msgs.length) { out.textContent = 'No unread emails to analyze.'; btn.textContent = '✦ Analyze with AI'; btn.disabled = false; return; }
+
+    const dp = _getDigestPrefs();
+    const prefBlock = (dp.userContext || dp.vipSenders || dp.lowPriority)
+      ? '\n\nUSER PREFERENCES (use these to classify emails):\n' +
+        (dp.userContext ? 'About the user: ' + dp.userContext + '\n' : '') +
+        (dp.vipSenders  ? 'VIP senders (always urgent/important): ' + dp.vipSenders + '\n' : '') +
+        (dp.lowPriority ? 'Low priority (de-emphasize): ' + dp.lowPriority + '\n' : '')
+      : '';
+
+    const list = msgs.map((m, i) =>
+      (i+1) + '. From: ' + m.fromName + ' | Subject: ' + m.subject + ' | Age: ' + m.time + ' | Preview: ' + m.snippet.slice(0, 100)
+    ).join('\n');
+
+    const prompt = 'You are analyzing someone\'s email inbox.' + prefBlock + '\n\nHere are their ' + msgs.length + ' most recent unread emails:\n\n' + list +
+      '\n\nBased on the user preferences above (if provided), respond in EXACTLY this format:\nSUMMARY: [2 sentences summarizing the inbox]\nURGENT: [comma-separated email numbers needing immediate action per the user\'s priorities, or "none"]\nREPLY: [comma-separated email numbers needing a reply, or "none"]\nACTION: [the single most important thing to do right now, max 15 words]';
+
+    const response = await callAI(prompt);
+    const get = (key) => { const m = response.match(new RegExp(key + ':\\s*(.+)')); return m ? m[1].trim() : ''; };
+    const summary = get('SUMMARY'), urgent = get('URGENT'), reply = get('REPLY'), action = get('ACTION');
+
+    // ── Urgent emails in AI card ───────────────────────────────────
+    let urgentHtml = '';
+    if (urgent && urgent.toLowerCase() !== 'none') {
+      const idxs = urgent.split(',').map(s => parseInt(s.trim()) - 1).filter(n => !isNaN(n) && msgs[n]);
+      if (idxs.length) {
+        urgentHtml = '<div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--red);margin:10px 0 5px">⚡ AI-Detected Urgent (' + idxs.length + ')</div>' +
+          '<div class="dg-urgent-list">' +
+          idxs.map(i => '<div class="dg-urgent-item"><div class="dg-urgent-dot"></div>' +
+            '<div><strong>' + msgs[i].fromName + '</strong> — ' + msgs[i].subject + '</div></div>'
+          ).join('') + '</div>';
+      }
+    }
+
+    // ── Needs Reply section — AI-driven ───────────────────────────
+    const repEl = document.getElementById('dgReplySec');
+    if (repEl) {
+      let replyIdxs = [];
+      if (reply && reply.toLowerCase() !== 'none') {
+        replyIdxs = reply.split(',').map(s => parseInt(s.trim()) - 1).filter(n => !isNaN(n) && msgs[n]);
+      }
+      const replyCount = replyIdxs.length;
+      _aiReplyEmails = replyIdxs.map(i => msgs[i]); // save for task drafting
+      const replyBody = replyCount
+        ? replyIdxs.map(i => _dgRow(msgs[i])).join('')
+        : '<div class="dg-empty">No emails need a reply today — you\'re all caught up!</div>';
+      repEl.innerHTML = _dgSection('⏰', 'Needs a Reply', 'var(--red)', replyCount || null, replyBody);
+      const statEl = document.getElementById('dgStatReply');
+      if (statEl) statEl.textContent = replyCount || '0';
+    }
+
+    out.innerHTML =
+      (summary ? '<div class="dg-ai-out" style="margin-bottom:8px">' + summary + '</div>' : '') +
+      (action  ? '<div class="dg-priority-box"><strong>→ Top priority:</strong> ' + action + '</div>' : '') +
+      urgentHtml;
+
+    btn.textContent = '✓ Done — Re-analyze'; btn.disabled = false;
+  } catch(e) {
+    out.innerHTML = '<div style="color:var(--red);font-size:12px">Analysis failed: ' + e.message + '</div>';
+    btn.textContent = '✦ Analyze with AI'; btn.disabled = false;
+  }
 }
 
 function renderDigest() {
@@ -1940,59 +2529,230 @@ function renderDigest() {
 
   if (!hasEmail) {
     document.getElementById('content').innerHTML =
-      '<div class="digest-view">' +
-        '<div class="page-title">Email Digest</div>' +
-        '<div class="page-sub">A smart daily summary of what matters in your inbox.</div>' +
-        '<div class="digest-connect-cta">' +
-          '<div class="digest-connect-icon">&#128231;</div>' +
-          '<div class="digest-connect-title">Connect your email to get started</div>' +
-          '<div class="digest-connect-desc">Once connected, MailCal will scan your inbox and surface the emails that need your attention — so you spend less time in your inbox.</div>' +
-          '<button class="save-btn" onclick="goSettings()">Connect Email Account</button>' +
-        '</div>' +
-      '</div>';
+      '<div class="digest-view"><div class="digest-connect-cta">' +
+        '<div class="digest-connect-icon">📬</div>' +
+        '<div class="digest-connect-title">Connect your email to get started</div>' +
+        '<div class="digest-connect-desc">MailCal will surface urgent emails, what needs replies, and give you an AI-powered inbox summary.</div>' +
+        '<button class="save-btn" onclick="goSettings()">Connect Email Account</button>' +
+      '</div></div>';
     return;
   }
 
-  const aiSection = hasAI
-    ? '<div class="digest-ai-summary">' +
-        '<div class="digest-ai-label">&#10022; AI Summary</div>' +
-        '<div class="digest-ai-text">Your inbox looks manageable today. 3 emails need a reply, including one from Sarah about a lunch meeting next Thursday. Mike\'s project update is waiting — AI can draft a reply when you\'re ready. No urgent deadlines detected in the next 48 hours.</div>' +
-      '</div>'
-    : '<div class="digest-ai-summary" style="opacity:.5">' +
-        '<div class="digest-ai-label">&#10022; AI Summary</div>' +
-        '<div class="digest-ai-text">Connect an AI provider in Settings to get smart inbox summaries, draft suggestions, and meeting detection.</div>' +
-      '</div>';
+  const days  = _digestDays;
+  const pills = [{ l:'Today', v:1 },{ l:'7 days', v:7 },{ l:'30 days', v:30 },{ l:'All', v:'all' }]
+    .map(p => '<button class="dg-pill' + (p.v === days ? ' on' : '') + '" onclick="digestSetDays(' + (typeof p.v==='string'?'\''+p.v+'\'':p.v) + ')">' + p.l + '</button>').join('');
 
-  const sampleEmails = [
-    { from: 'Sarah Johnson', subj: 'Lunch next Thursday — does that work?', time: '9:42 AM' },
-    { from: 'Mike Chen',     subj: 'Project update — Q2 report attached',   time: 'Yesterday' },
-    { from: 'HR Team',       subj: 'Time-off policy update for 2026',        time: 'Yesterday' },
-  ];
-  const emailRows = sampleEmails.map(function(e) {
-    return '<div class="digest-email-row">' +
-      '<div class="digest-email-dot"></div>' +
-      '<div style="flex:1"><div class="digest-email-from">' + e.from + '</div>' +
-      '<div class="digest-email-subj">' + e.subj + '</div></div>' +
-      '<div class="digest-email-time">' + e.time + '</div>' +
-    '</div>';
-  }).join('');
+  const both = CFG.gmail.connected && CFG.outlook.connected;
+  const acctTabs = both
+    ? '<div class="dg-acct-tabs">' +
+        '<button class="dg-acct-tab' + (_digestAccount === 'gmail'   ? ' on' : '') + '" onclick="digestSetAccount(\'gmail\')">' +
+          '<span style="color:var(--gmail);font-weight:800">G</span> Gmail</button>' +
+        '<button class="dg-acct-tab' + (_digestAccount === 'outlook' ? ' on' : '') + '" onclick="digestSetAccount(\'outlook\')">' +
+          '<span style="color:var(--outlook);font-weight:800">O</span> Outlook</button>' +
+      '</div>'
+    : '';
+
+  const dp = _getDigestPrefs();
+  const hasPrefs = !!(dp.userContext || dp.vipSenders || dp.lowPriority);
 
   document.getElementById('content').innerHTML =
     '<div class="digest-view">' +
-      '<div class="page-title">Email Digest</div>' +
-      '<div class="page-sub">Your inbox summary — updated as emails arrive.</div>' +
-      '<div class="digest-stats">' +
-        '<div class="digest-stat"><div class="digest-stat-num" style="color:var(--email-color)">—</div><div class="digest-stat-lbl">Unread</div></div>' +
-        '<div class="digest-stat"><div class="digest-stat-num" style="color:var(--red)">3</div><div class="digest-stat-lbl">Need Reply</div></div>' +
-        '<div class="digest-stat"><div class="digest-stat-num" style="color:var(--cal-color)">1</div><div class="digest-stat-lbl">Meetings Detected</div></div>' +
-        '<div class="digest-stat"><div class="digest-stat-num" style="color:var(--green)">0</div><div class="digest-stat-lbl">Urgent</div></div>' +
+      acctTabs +
+      '<div class="dg-topbar"><span class="dg-title">Email Digest</span>' + pills +
+        '<button class="dg-pref-btn' + (hasPrefs ? ' active' : '') + '" id="dgPrefBtn" onclick="toggleDigestPrefs()">⚙ Preferences' + (hasPrefs ? ' ●' : '') + '</button>' +
+        '<button class="dg-refresh" id="dgRefreshBtn" onclick="refreshDigest()" title="Refresh">↺</button>' +
       '</div>' +
-      aiSection +
-      '<div>' +
-        '<div class="digest-section-title">Needs Your Attention <span>' + sampleEmails.length + '</span></div>' +
-        '<div class="digest-email-list">' + emailRows + '</div>' +
+      '<div class="dg-prefs-panel" id="dgPrefsPanel">' +
+        '<div>' +
+          '<div class="dg-prefs-title">AI Classification Preferences</div>' +
+          '<div class="dg-prefs-sub">Tell the AI about yourself and your priorities. The more specific you are, the better it classifies what\'s urgent vs. low priority.</div>' +
+        '</div>' +
+        '<div class="dg-prefs-row">' +
+          '<label class="dg-prefs-label">About me & my priorities</label>' +
+          '<textarea class="dg-prefs-input" id="dpUserCtx" rows="3" placeholder="e.g. I\'m a personal injury lawyer. Emails from clients, court dates, settlement discussions, or opposing counsel are urgent. Anything with \'deadline\' or \'court\' in the subject needs a reply same day.">' + (dp.userContext || '') + '</textarea>' +
+        '</div>' +
+        '<div class="dg-prefs-row">' +
+          '<label class="dg-prefs-label">VIP senders — always treat as important</label>' +
+          '<input class="dg-prefs-input" id="dpVip" type="text" placeholder="e.g. boss@company.com, Client Name, @importantdomain.com" value="' + (dp.vipSenders || '') + '" />' +
+        '</div>' +
+        '<div class="dg-prefs-row">' +
+          '<label class="dg-prefs-label">Always low priority — de-emphasize these</label>' +
+          '<input class="dg-prefs-input" id="dpLow" type="text" placeholder="e.g. newsletters, LinkedIn, promotions, noreply@" value="' + (dp.lowPriority || '') + '" />' +
+        '</div>' +
+        '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg);border:1px solid var(--border-s);border-radius:9px">' +
+          '<div style="flex:1">' +
+            '<div style="font-size:12px;font-weight:700">Filter out newsletters & marketing</div>' +
+            '<div style="font-size:11px;color:var(--muted);margin-top:2px">Automatically excludes Gmail\'s Promotions, Social, Updates, and Forums categories from counts and AI analysis</div>' +
+          '</div>' +
+          '<div class="toggle' + ((dp.filterNoise !== false) ? ' on' : '') + '" id="dpNoiseToggle" onclick="toggleNoiseFilter(this)"></div>' +
+        '</div>' +
+        '<button class="dg-prefs-save" onclick="saveDigestPrefs()">Save Preferences</button>' +
       '</div>' +
+      '<div class="dg-stats">' +
+        '<div class="dg-stat"><div class="dg-stat-bar" style="background:var(--accent)"></div><div class="dg-stat-num" style="color:var(--accent)" id="dgStatUnread">…</div><div class="dg-stat-lbl">Unread</div><div class="dg-stat-icon">📬</div></div>' +
+        '<div class="dg-stat"><div class="dg-stat-bar" style="background:var(--orange)"></div><div class="dg-stat-num" style="color:var(--orange)" id="dgStatImportant">…</div><div class="dg-stat-lbl">Important</div><div class="dg-stat-icon">⭐</div></div>' +
+        '<div class="dg-stat"><div class="dg-stat-bar" style="background:var(--red)"></div><div class="dg-stat-num" style="color:var(--red)" id="dgStatReply">…</div><div class="dg-stat-lbl">Needs Reply</div><div class="dg-stat-icon">↩</div></div>' +
+        '<div class="dg-stat"><div class="dg-stat-bar" style="background:var(--green)"></div><div class="dg-stat-num" style="color:var(--green)" id="dgStatToday">…</div><div class="dg-stat-lbl">Today</div><div class="dg-stat-icon">📅</div></div>' +
+      '</div>' +
+      '<div class="dg-ai-card">' +
+        '<div class="dg-ai-head"><div class="dg-ai-icon">✦</div><span class="dg-ai-label">AI Inbox Analysis</span>' +
+          '<span class="dg-ai-by">' + (hasAI ? 'via ' + CFG.ai.active : 'No AI connected') + '</span></div>' +
+        (hasAI
+          ? '<button class="dg-ai-btn" id="dgAiBtn" onclick="digestAnalyzeAI()">✦ Analyze with AI</button>' +
+            '<div id="dgAiOut"></div>'
+          : '<div style="font-size:12px;color:var(--muted)">Connect an AI in Settings to detect urgent emails, get inbox summaries, and surface what needs your attention.</div>'
+        ) +
+      '</div>' +
+      '<div id="dgImportantSec">' + _dgSection('⚡','Important & Urgent','var(--orange)',null,_dgSkel(3)) + '</div>' +
+      '<div id="dgReplySec">'     + _dgSection('⏰','Needs a Reply','var(--red)',null,_dgSkel(3))         + '</div>' +
+      '<div id="dgAllSec">'       + _dgSection('📬','All Unread','var(--accent)',null,_dgSkel(5))         + '</div>' +
+      '<div id="dgSpamSec">'      + _dgSection('⚠','Possible Important Spam','#eab308',null,_dgSkel(2))  + '</div>' +
     '</div>';
+
+  _loadDigestData();
+}
+
+async function _loadDigestData() {
+  if (_digestAccount === 'outlook') { await _loadOutlookDigestData(); return; }
+
+  const days = _digestDays;
+  const ap   = (days === 'all') ? '' : (' after:' + Math.floor((Date.now() - days * 86400000) / 1000));
+  try {
+    const nf = _noiseFilter();
+    const spamAp = ' after:' + Math.floor((Date.now() - 30 * 86400000) / 1000);
+    const [stats, impMsgs, allMsgs, spamMsgs] = await Promise.all([
+      gmailGetDigestStats(days === 'all' ? 90 : days),
+      gmailListUnread('is:unread is:important in:inbox' + nf + ap, 8),
+      gmailListUnread('is:unread in:inbox' + nf + ap, 15),
+      gmailListUnread('in:spam -category:promotions -category:social -category:updates' + spamAp, 10),
+    ]);
+    const s = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    s('dgStatUnread', stats.unread); s('dgStatImportant', stats.important);
+    s('dgStatReply',  stats.needsReply); s('dgStatToday', stats.today);
+    const wNum = document.getElementById('w-unread-count');
+    if (wNum) wNum.textContent = stats.unread;
+
+    const impEl = document.getElementById('dgImportantSec');
+    if (impEl) impEl.innerHTML = _dgSection('⚡','Important & Urgent','var(--orange)', impMsgs.length || null,
+      impMsgs.length ? impMsgs.map(_dgRow).join('') : '<div class="dg-empty">No important unread emails — all clear!</div>');
+
+    const repEl = document.getElementById('dgReplySec');
+    if (repEl) repEl.innerHTML = _dgSection('⏰','Needs a Reply','var(--red)', null,
+      '<div class="dg-empty" style="display:flex;align-items:center;gap:8px">' +
+        '<span>Run</span>' +
+        '<button class="dg-ai-btn" style="padding:4px 10px;font-size:11px" onclick="digestAnalyzeAI()">✦ AI Analysis</button>' +
+        '<span>above to detect which emails need a response today.</span>' +
+      '</div>');
+
+    const allEl = document.getElementById('dgAllSec');
+    const period = days === 'all' ? '' : (' — Last ' + (days === 1 ? 'Day' : days + ' Days'));
+    if (allEl) allEl.innerHTML = _dgSection('📬','All Unread' + period,'var(--accent)', allMsgs.length || null,
+      allMsgs.length ? allMsgs.map(_dgRow).join('') : '<div class="dg-empty">No unread emails in this period.</div>');
+
+    const spamEl = document.getElementById('dgSpamSec');
+    if (spamEl) {
+      const spamRows = spamMsgs.map(m => _dgRow({ ...m, isSpam: true })).join('');
+      spamEl.innerHTML = _dgSection('⚠','Possible Important Spam','#eab308', spamMsgs.length || null,
+        spamMsgs.length
+          ? '<div style="font-size:11px;color:var(--muted);margin-bottom:8px">These ended up in spam but may be legitimate. Last 30 days, excluding newsletters.</div>' + spamRows
+          : '<div class="dg-empty">No suspicious spam found — your spam folder looks clean.</div>');
+    }
+  } catch(e) {
+    console.error('Digest load error:', e);
+  }
+}
+
+async function _loadOutlookDigestData() {
+  const days  = _digestDays;
+  const since = days === 'all' ? null : new Date(Date.now() - days * 86400000).toISOString();
+  const todayCutoff = Date.now() - 86400000;
+  try {
+    const [allMsgs, impMsgs, unreadCount] = await Promise.all([
+      outlookListMessages({ isRead: false, ...(since ? { since } : {}) }, 15),
+      outlookListMessages({ isRead: false, importance: 'high', ...(since ? { since } : {}) }, 8),
+      outlookGetUnread(),
+    ]);
+    const todayCount = allMsgs.filter(m => m.rawDate && new Date(m.rawDate).getTime() > todayCutoff).length;
+    const s = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    s('dgStatUnread', unreadCount); s('dgStatImportant', impMsgs.length);
+    s('dgStatReply', '—'); s('dgStatToday', todayCount);
+
+    const impEl = document.getElementById('dgImportantSec');
+    if (impEl) impEl.innerHTML = _dgSection('⚡','Important & Urgent','var(--orange)', impMsgs.length || null,
+      impMsgs.length ? impMsgs.map(_dgRow).join('') : '<div class="dg-empty">No important unread emails — all clear!</div>');
+
+    const repEl = document.getElementById('dgReplySec');
+    if (repEl) repEl.innerHTML = _dgSection('⏰','Needs a Reply','var(--red)', null,
+      '<div class="dg-empty" style="display:flex;align-items:center;gap:8px">' +
+        '<span>Run</span>' +
+        '<button class="dg-ai-btn" style="padding:4px 10px;font-size:11px" onclick="digestAnalyzeAI()">✦ AI Analysis</button>' +
+        '<span>above to detect which emails need a response today.</span>' +
+      '</div>');
+
+    const period = days === 'all' ? '' : (' — Last ' + (days === 1 ? 'Day' : days + ' Days'));
+    const allEl = document.getElementById('dgAllSec');
+    if (allEl) allEl.innerHTML = _dgSection('📬','All Unread' + period,'var(--accent)', allMsgs.length || null,
+      allMsgs.length ? allMsgs.map(_dgRow).join('') : '<div class="dg-empty">No unread emails in this period.</div>');
+
+    // Outlook junk folder — fetch separately, best-effort
+    const spamEl = document.getElementById('dgSpamSec');
+    if (spamEl) {
+      try {
+        const junkToken = await getMicrosoftToken();
+        const junkSince = new Date(Date.now() - 30 * 86400000).toISOString();
+        const junkData  = await fetch(
+          'https://graph.microsoft.com/v1.0/me/mailFolders/junkemail/messages?$filter=' +
+          encodeURIComponent('isRead eq false and receivedDateTime ge ' + junkSince) +
+          '&$top=10&$select=id,subject,from,receivedDateTime,bodyPreview,conversationId',
+          { headers: { Authorization: 'Bearer ' + junkToken } }
+        ).then(r => r.json());
+        const junkMsgs = (junkData.value || []).map(m => {
+          const fn = (m.from && m.from.emailAddress && m.from.emailAddress.name) || '?';
+          return {
+            id: m.id, threadId: m.conversationId, isSpam: true,
+            fromName: fn, fromEmail: (m.from && m.from.emailAddress && m.from.emailAddress.address) || '',
+            initial: fn.charAt(0).toUpperCase(), color: _dgColor(fn),
+            subject: m.subject || '(no subject)', snippet: m.bodyPreview || '',
+            time: _fmtTime(m.receivedDateTime), rawDate: m.receivedDateTime,
+            ageH: m.receivedDateTime ? (Date.now() - new Date(m.receivedDateTime)) / 3600000 : 0,
+            isImportant: false,
+          };
+        });
+        spamEl.innerHTML = _dgSection('⚠','Possible Important Junk','#eab308', junkMsgs.length || null,
+          junkMsgs.length
+            ? '<div style="font-size:11px;color:var(--muted);margin-bottom:8px">Unread emails in your Junk folder from the last 30 days — check these in case something legitimate was caught.</div>' + junkMsgs.map(_dgRow).join('')
+            : '<div class="dg-empty">No unread junk mail — your junk folder looks clean.</div>');
+      } catch(_) {
+        spamEl.innerHTML = '';
+      }
+    }
+  } catch(e) {
+    console.error('Outlook digest load error:', e);
+  }
+}
+
+async function refreshDigest() {
+  const btn = document.getElementById('dgRefreshBtn');
+  if (btn) btn.classList.add('spin');
+  await _loadDigestData();
+  if (btn) btn.classList.remove('spin');
+}
+
+async function refreshAIContext() {
+  const btn  = document.getElementById('aiCtxBtn');
+  const msgs = document.getElementById('chatMsgs');
+  if (btn) { btn.textContent = '↺ Refreshing…'; btn.disabled = true; }
+  try {
+    await buildAIContext(true);
+    if (msgs) {
+      const note = document.createElement('div');
+      note.style.cssText = 'font-size:10px;color:var(--muted);text-align:center;padding:4px 0';
+      note.textContent = '✓ Context refreshed — AI now has your latest data';
+      msgs.appendChild(note);
+      msgs.scrollTop = msgs.scrollHeight;
+    }
+  } catch(_) {}
+  if (btn) { btn.textContent = '↺ Refresh data'; btn.disabled = false; }
 }
 
 // ── Settings ──────────────────────────────────────────────────────
@@ -2073,18 +2833,14 @@ function gmailCard() {
       <button class="pcard-btn disconnect" onclick="disconnect('gmail')">Disconnect</button>
     </div>`;
   }
+  const notReady = !GOOGLE_CLIENT_ID;
   return `<div class="provider-card">
     <div class="pcard-head">
       <div class="pcard-logo" style="background:var(--gmail)">G</div>
       <div><div class="pcard-name">Gmail</div><div class="pcard-status off">Not connected</div></div>
     </div>
-    <div class="field-group">
-      <label>OAuth Client ID</label>
-      <input type="text" id="gmailClientId" placeholder="xxxxx.apps.googleusercontent.com"
-             value="${g.clientId}" oninput="CFG.gmail.clientId=this.value" />
-      <div class="field-help">Get this from <a onclick="openHelp('gmail')">Google Cloud Console →</a></div>
-    </div>
-    <button class="pcard-btn connect" onclick="connectOAuth('gmail')">Connect with Google</button>
+    ${notReady ? '<div class="field-help" style="color:var(--orange);margin-bottom:10px">⚠ Google not yet configured for this app — contact the developer to enable this.</div>' : '<div class="field-help" style="margin-bottom:10px">Sign in with your Google account — no passwords stored here.</div>'}
+    <button class="pcard-btn connect" onclick="connectOAuth(\'gmail\')">Connect with Google</button>
   </div>`;
 }
 
@@ -2103,23 +2859,14 @@ function outlookCard() {
       <button class="pcard-btn disconnect" onclick="disconnect('outlook')">Disconnect</button>
     </div>`;
   }
+  const notReady = !MICROSOFT_CLIENT_ID;
   return `<div class="provider-card">
     <div class="pcard-head">
       <div class="pcard-logo" style="background:var(--outlook)">O</div>
       <div><div class="pcard-name">Outlook / Microsoft</div><div class="pcard-status off">Not connected</div></div>
     </div>
-    <div class="field-group">
-      <label>Application (Client) ID</label>
-      <input type="text" id="outlookClientId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-             value="${o.clientId}" oninput="CFG.outlook.clientId=this.value" />
-      <div class="field-help">Get this from <a onclick="openHelp('outlook')">Azure App Registrations →</a></div>
-    </div>
-    <div class="field-group">
-      <label>Tenant ID <span style="font-weight:400;text-transform:none">(optional)</span></label>
-      <input type="text" id="outlookTenantId" placeholder="common"
-             value="${o.tenantId}" oninput="CFG.outlook.tenantId=this.value" />
-    </div>
-    <button class="pcard-btn connect" onclick="connectOAuth('outlook')">Connect with Microsoft</button>
+    ${notReady ? '<div class="field-help" style="color:var(--orange);margin-bottom:10px">⚠ Microsoft not yet configured for this app — contact the developer to enable this.</div>' : '<div class="field-help" style="margin-bottom:10px">Sign in with your Microsoft account — no passwords stored here.</div>'}
+    <button class="pcard-btn connect" onclick="connectOAuth(\'outlook\')">Connect with Microsoft</button>
   </div>`;
 }
 
@@ -2388,40 +3135,223 @@ function renderGeneralTab() {
   '</div>';
 }
 
+// ── Google OAuth (GIS token client) ──────────────────────────────
+let _googleTokenClient  = null;
+let _googleTokenResolve = null;
+let _googleTokenReject  = null;
+let _googleTokenPromise = null; // dedup concurrent refresh calls
+let _googleTokenSilent  = false; // true when current request is prompt:'none'
+
+function _initGoogleTokenClient() {
+  if (_googleTokenClient || !window.google || !GOOGLE_CLIENT_ID) return;
+  _googleTokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: GOOGLE_CLIENT_ID,
+    scope: 'https://www.googleapis.com/auth/gmail.modify https://www.googleapis.com/auth/calendar openid email profile',
+    callback(response) {
+      if (response.error) {
+        if (_googleTokenSilent && _googleTokenResolve) {
+          // Silent attempt failed — retry with visible prompt (brief flash, but always works)
+          _googleTokenSilent = false;
+          _googleTokenClient.requestAccessToken({ prompt: '', login_hint: CFG.gmail.email || '' });
+          return;
+        }
+        if (_googleTokenReject) _googleTokenReject(new Error(response.error_description || response.error));
+        _googleTokenResolve = _googleTokenReject = null;
+        return;
+      }
+      CFG.gmail.accessToken = response.access_token;
+      CFG.gmail.tokenExpiry = Date.now() + ((response.expires_in - 60) * 1000);
+      if (_googleTokenResolve) _googleTokenResolve(response.access_token);
+      _googleTokenResolve = _googleTokenReject = null;
+    }
+  });
+}
+
+async function getGoogleToken(forceRefresh, explicit) {
+  if (!GOOGLE_CLIENT_ID) throw new Error('Google not configured');
+  if (!forceRefresh && CFG.gmail.accessToken && CFG.gmail.tokenExpiry > Date.now()) {
+    return CFG.gmail.accessToken;
+  }
+  if (!forceRefresh && !explicit && _googleTokenPromise) return _googleTokenPromise;
+  _initGoogleTokenClient();
+  if (!_googleTokenClient) throw new Error('Google Sign-In library not loaded yet — please refresh and try again.');
+  _googleTokenPromise = new Promise((resolve, reject) => {
+    _googleTokenResolve = resolve;
+    _googleTokenReject  = reject;
+    _googleTokenSilent  = !explicit;
+    // Try fully silent first; callback auto-retries with '' if it fails
+    _googleTokenClient.requestAccessToken({
+      prompt: explicit ? '' : 'none',
+      login_hint: CFG.gmail.email || ''
+    });
+  });
+  _googleTokenPromise.catch(() => {}).finally(() => { _googleTokenPromise = null; _googleTokenSilent = false; });
+  return _googleTokenPromise;
+}
+
+// ── Microsoft OAuth (MSAL.js) ─────────────────────────────────────
+let _msalApp     = null;
+let _msalAccount = null;
+const MSAL_SCOPES = ['Mail.ReadWrite', 'Mail.Send', 'Calendars.ReadWrite', 'User.Read'];
+
+function _getMsalApp() {
+  if (_msalApp) return _msalApp;
+  if (!window.msal || !MICROSOFT_CLIENT_ID) return null;
+  _msalApp = new msal.PublicClientApplication({
+    auth: {
+      clientId: MICROSOFT_CLIENT_ID,
+      authority: 'https://login.microsoftonline.com/common',
+      redirectUri: window.location.origin + window.location.pathname,
+    },
+    cache: { cacheLocation: 'localStorage' }
+  });
+  // Restore cached account
+  const accounts = _msalApp.getAllAccounts();
+  if (accounts.length) _msalAccount = accounts[0];
+  return _msalApp;
+}
+
+async function getMicrosoftToken(forceRefresh) {
+  if (!MICROSOFT_CLIENT_ID) throw new Error('Microsoft not configured');
+  const app = _getMsalApp();
+  if (!app) throw new Error('MSAL library not loaded yet — please refresh and try again.');
+  if (!forceRefresh && CFG.outlook.accessToken && CFG.outlook.tokenExpiry > Date.now()) {
+    return CFG.outlook.accessToken;
+  }
+  const account = _msalAccount || (app.getAllAccounts()[0] || null);
+  if (account) {
+    try {
+      const result = await app.acquireTokenSilent({ scopes: MSAL_SCOPES, account });
+      _msalAccount = result.account;
+      CFG.outlook.accessToken = result.accessToken;
+      CFG.outlook.tokenExpiry = Date.now() + 3500 * 1000;
+      return result.accessToken;
+    } catch (_) { /* fall through to popup */ }
+  }
+  const result = await app.acquireTokenPopup({ scopes: MSAL_SCOPES });
+  _msalAccount = result.account;
+  CFG.outlook.accessToken = result.accessToken;
+  CFG.outlook.tokenExpiry = Date.now() + 3500 * 1000;
+  return result.accessToken;
+}
+
+// ── Email & Calendar API helpers ──────────────────────────────────
+async function gmailGetUnread() {
+  const token = await getGoogleToken();
+  const days  = (CFG.general && CFG.general.emailDays) || 7;
+  const after = Math.floor((Date.now() - days * 86400000) / 1000);
+  const nf    = _noiseFilter();
+  const data  = await fetch(
+    `https://gmail.googleapis.com/gmail/v1/users/me/threads?q=${encodeURIComponent('is:unread in:inbox' + nf + ' after:' + after)}&maxResults=500`,
+    { headers: { Authorization: 'Bearer ' + token } }
+  ).then(r => r.json());
+  const count = (data.threads || []).length;
+  return data.nextPageToken ? count + '+' : count;
+}
+
+async function googleCalGetEvents(max) {
+  const token = await getGoogleToken();
+  const now   = new Date().toISOString();
+  const end   = new Date(Date.now() + 7 * 86400000).toISOString();
+  const data  = await fetch(
+    `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${now}&timeMax=${end}&maxResults=${max || 5}&singleEvents=true&orderBy=startTime`,
+    { headers: { Authorization: 'Bearer ' + token } }
+  ).then(r => r.json());
+  return data.items || [];
+}
+
+async function outlookGetUnread() {
+  const token = await getMicrosoftToken();
+  const days  = (CFG.general && CFG.general.emailDays) || 7;
+  const since = new Date(Date.now() - days * 86400000).toISOString();
+  const data  = await fetch(
+    `https://graph.microsoft.com/v1.0/me/messages?$filter=isRead eq false and receivedDateTime ge ${since}&$count=true&$top=1`,
+    { headers: { Authorization: 'Bearer ' + token, 'ConsistencyLevel': 'eventual' } }
+  ).then(r => r.json());
+  return data['@odata.count'] != null ? data['@odata.count'] : (data.value ? data.value.length : 0);
+}
+
+async function outlookListMessages(opts, max) {
+  const token = await getMicrosoftToken();
+  const filters = [];
+  if (opts.isRead === false) filters.push('isRead eq false');
+  if (opts.importance)       filters.push("importance eq '" + opts.importance + "'");
+  if (opts.since)            filters.push('receivedDateTime ge ' + opts.since);
+  const qs = (filters.length ? '$filter=' + encodeURIComponent(filters.join(' and ')) + '&' : '') +
+    '$top=' + (max || 15) + '&$select=id,subject,from,receivedDateTime,isRead,importance,conversationId,bodyPreview,inferenceClassification';
+  const data = await fetch(
+    'https://graph.microsoft.com/v1.0/me/mailFolders/inbox/messages?' + qs,
+    { headers: { Authorization: 'Bearer ' + token } }
+  ).then(r => r.json());
+  return (data.value || []).map(m => {
+    const fromName  = (m.from && m.from.emailAddress && m.from.emailAddress.name)    || '?';
+    const fromEmail = (m.from && m.from.emailAddress && m.from.emailAddress.address) || '';
+    const ageH = m.receivedDateTime ? (Date.now() - new Date(m.receivedDateTime)) / 3600000 : 0;
+    return {
+      id: m.id, threadId: m.conversationId,
+      fromName, fromEmail,
+      initial:     fromName.charAt(0).toUpperCase(),
+      color:       _dgColor(fromName),
+      subject:     m.subject || '(no subject)',
+      snippet:     m.bodyPreview || '',
+      time:        _fmtTime(m.receivedDateTime),
+      rawDate:     m.receivedDateTime,
+      ageH,
+      isImportant: m.importance === 'high',
+      isRead:      m.isRead,
+      focused:     m.inferenceClassification !== 'other',
+    };
+  });
+}
+
+async function outlookCalGetEvents(max) {
+  const token = await getMicrosoftToken();
+  const now   = new Date().toISOString();
+  const end   = new Date(Date.now() + 7 * 86400000).toISOString();
+  const data  = await fetch(
+    `https://graph.microsoft.com/v1.0/me/calendarView?startDateTime=${now}&endDateTime=${end}&$top=${max || 5}&$orderby=start/dateTime`,
+    { headers: { Authorization: 'Bearer ' + token } }
+  ).then(r => r.json());
+  return data.value || [];
+}
+
 // ── Actions ───────────────────────────────────────────────────────
-function connectOAuth(provider) {
+async function connectOAuth(provider) {
   if (provider === 'gmail') {
-    if (!CFG.gmail.clientId.trim()) {
-      alert('Please enter your Google OAuth Client ID first.');
-      return;
-    }
-    const redirectUri = encodeURIComponent(location.origin + '/');
-    const scope = encodeURIComponent('https://www.googleapis.com/auth/gmail.modify https://www.googleapis.com/auth/calendar');
-    const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${CFG.gmail.clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&access_type=offline&prompt=consent`;
-    window.open(url, '_blank');
-    // For now, simulate connected state with a demo note
-    setTimeout(() => {
+    if (!GOOGLE_CLIENT_ID) { alert('Google is not yet configured for this app. Please contact support.'); return; }
+    _initGoogleTokenClient();
+    if (!_googleTokenClient) { alert('Google Sign-In is still loading. Please try again in a moment.'); return; }
+    try {
+      const token = await new Promise((resolve, reject) => {
+        _googleTokenResolve = resolve;
+        _googleTokenReject  = reject;
+        _googleTokenClient.requestAccessToken({ prompt: 'consent' });
+      });
+      const info = await fetch('https://www.googleapis.com/oauth2/v3/userinfo',
+        { headers: { Authorization: 'Bearer ' + token } }).then(r => r.json());
       CFG.gmail.connected = true;
-      CFG.gmail.email = 'your@gmail.com (authorize in popup)';
+      CFG.gmail.email     = info.email || '';
       saveCfg(CFG);
       renderSettings('accounts');
-    }, 1000);
-  } else if (provider === 'outlook') {
-    if (!CFG.outlook.clientId.trim()) {
-      alert('Please enter your Microsoft Application (Client) ID first.');
-      return;
+    } catch(e) {
+      if (e.message !== 'access_denied') alert('Google sign-in failed: ' + e.message);
     }
-    const tenant = CFG.outlook.tenantId || 'common';
-    const redirectUri = encodeURIComponent(location.origin + '/');
-    const scope = encodeURIComponent('Mail.ReadWrite Mail.Send Calendars.ReadWrite offline_access');
-    const url = `https://login.microsoftonline.com/${tenant}/oauth2/v2.0/authorize?client_id=${CFG.outlook.clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}`;
-    window.open(url, '_blank');
-    setTimeout(() => {
+  } else if (provider === 'outlook') {
+    if (!MICROSOFT_CLIENT_ID) { alert('Microsoft is not yet configured for this app. Please contact support.'); return; }
+    const app = _getMsalApp();
+    if (!app) { alert('Microsoft Sign-In is still loading. Please try again in a moment.'); return; }
+    try {
+      const result = await app.loginPopup({ scopes: MSAL_SCOPES, prompt: 'select_account' });
+      _msalAccount = result.account;
+      CFG.outlook.accessToken = result.accessToken;
+      CFG.outlook.tokenExpiry = Date.now() + 3500 * 1000;
       CFG.outlook.connected = true;
-      CFG.outlook.email = 'your@outlook.com (authorize in popup)';
+      CFG.outlook.email     = result.account.username || '';
       saveCfg(CFG);
       renderSettings('accounts');
-    }, 1000);
+    } catch(e) {
+      if (e.errorCode !== 'user_cancelled') alert('Microsoft sign-in failed: ' + e.message);
+    }
   }
 }
 
@@ -2436,10 +3366,18 @@ function connectCal(provider) {
 }
 
 function disconnect(key) {
-  if (key === 'gmail')      { CFG.gmail      = { connected:false, email:'', clientId: CFG.gmail.clientId }; }
-  if (key === 'outlook')    { CFG.outlook    = { connected:false, email:'', clientId: CFG.outlook.clientId, tenantId: CFG.outlook.tenantId }; }
-  if (key === 'googleCal')  { CFG.googleCal  = { connected:false }; }
-  if (key === 'outlookCal') { CFG.outlookCal = { connected:false }; }
+  if (key === 'gmail') {
+    CFG.gmail     = { connected: false, email: '', accessToken: '', tokenExpiry: 0 };
+    CFG.googleCal = { connected: false };
+  }
+  if (key === 'outlook') {
+    CFG.outlook    = { connected: false, email: '', accessToken: '', tokenExpiry: 0 };
+    CFG.outlookCal = { connected: false };
+    if (_msalApp) { try { _msalApp.clearCache(); } catch(_) {} }
+    _msalAccount = null;
+  }
+  if (key === 'googleCal')  CFG.googleCal  = { connected: false };
+  if (key === 'outlookCal') CFG.outlookCal = { connected: false };
   saveCfg(CFG);
   if (key === 'gmail' || key === 'outlook') renderSettings('accounts');
   else renderSettings('calendar');
@@ -2456,7 +3394,7 @@ async function saveAI(provider) {
     CFG.ai.active = provider;
     const prevHistory = _chatHistory;
     _chatHistory = [];
-    await callAI('Say only: "Connected!" and nothing else.');
+    await callAI('Say only: "Connected!" and nothing else.', true);
     _chatHistory = prevHistory;
     CFG.ai.active = prev;
     saveCfg(CFG);
@@ -2979,6 +3917,10 @@ async function launchApp() {
     }
     applyTheme();
     updateAvatarUI();
+    // Pre-warm token in background so count appears without waiting on first render
+    if (CFG.gmail.connected && GOOGLE_CLIENT_ID) {
+      setTimeout(() => { _initGoogleTokenClient(); getGoogleToken().catch(() => {}); }, 0);
+    }
     goHome();
     document.body.classList.add('ready');
   }
