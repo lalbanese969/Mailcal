@@ -1,4 +1,4 @@
-const CACHE = 'mailcal-v15';
+const CACHE = 'mailcal-v16';
 const STATIC = ['./manifest.json'];
 
 self.addEventListener('install', e => {
